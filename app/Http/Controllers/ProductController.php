@@ -24,14 +24,22 @@ class ProductController extends Controller
         /**
          * Show the form for creating a new resource.
          */
-        public function create(Request $request)   
+        public function createProduct(Request $request)   
         {
             $data = $request->json()->all();
+            echo json_encode($data);
 
         $validator = Validator::make($data, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed', // password_confirmation obrigatório
+            'product_code' => 'required|string|min:5', 
+            'description'  => 'required|string|min:6',
+            'category_id'  => 'required|string|min:1',
+            'supplier_id'  => 'required|string|min:1',
+            'unit_id'  => 'required|string|min:1',
+            'cost_price'  => 'required|string|min:1',
+            'sale_price'  => 'required|string|min:1',
+            //'name' => 'required|string|max:255',
+            //'email' => 'required|string|email|max:255|unique:users',
+           // 'password' => 'required|string|min:6|confirmed', // password_confirmation obrigatório
         ]);
 
         if ($validator->fails()) {
@@ -41,18 +49,20 @@ class ProductController extends Controller
             ], 422);
         }
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
+        $product = ProductModel::create([
+            'product_code' => $data['product_code'],
+            'description'  => $data['description'],
+            'category_id'  => $data['category_id'],
+            'supplier_id'  => $data['supplier_id'],
+            'unit_id'  => $data['unit_id'],
+            'cost_price'  => $data['cost_price'],
+            'sale_price'  => $data['sale_price'],
         ]);
-
-        $token = JWTAuth::fromUser($user);
-
+        
         return response()->json([
             'success' => true,
-            'user' => $user,
-            'token' => $token
+            'user' => 'user',
+            'token' => 'token'
         ], 201);
         }
     

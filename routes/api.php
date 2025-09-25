@@ -8,5 +8,5 @@ Route::post('login', [AuthController::class, 'login']);
 Route::group(['middleware' => ['jwt.auth']], function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
-    Route::post('create', [ProductController::class, 'create']);
+    Route::post('createProduct', [ProductController::class, 'createProduct']);
 });
