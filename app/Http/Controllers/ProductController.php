@@ -38,7 +38,6 @@ class ProductController extends Controller
             'product_code' => 'required|string|min:5',
             'description' => 'required|string|min:6',
             'category_id' => 'required|string|min:1',
-            'supplier_id' => 'required|string|min:1',
             'unit_id' => 'required|string|min:1',
             'cost_price' => 'required|string|min:1',
             'sale_price' => 'required|string|min:1',
