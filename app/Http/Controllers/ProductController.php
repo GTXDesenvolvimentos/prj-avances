@@ -39,8 +39,6 @@ class ProductController extends Controller
             'description' => 'required|string|min:6',
             'category_id' => 'required|string|min:1',
             'unit_id' => 'required|string|min:1',
-            'cost_price' => 'required|string|min:1',
-            'sale_price' => 'required|string|min:1',
         ]);
         try {
             $product = ProductModel::create([
@@ -52,7 +50,6 @@ class ProductController extends Controller
                 'description' => $data['description'],
                 'category_id' => $data['category_id'],
                 'unit_id' => $data['unit_id'],
-                'cost_price' => $data['cost_price'],
                 'sale_price' => $data['sale_price'],
             ]);
 
