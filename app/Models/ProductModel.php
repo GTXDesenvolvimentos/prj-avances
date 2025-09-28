@@ -25,8 +25,6 @@ class ProductModel extends Model
     // ============================
     // Métodos CRUD personalizados
     // ============================
-
-    // Inserir produto
     public static function insertProduct(array $data)
     {
         return self::create($data);

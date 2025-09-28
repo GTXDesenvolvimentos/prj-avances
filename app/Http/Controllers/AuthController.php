@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -19,9 +20,10 @@ class AuthController extends Controller
         // Garantir que Laravel interprete o JSON
         $data = $request->json()->all();
 
+        // Validação inicial
         $validator = Validator::make($data, [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:6|confirmed', // password_confirmation obrigatório
         ]);
 
@@ -32,20 +34,43 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
+        try {
+            // Tentar criar o usuário
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+            ]);
 
-        $token = JWTAuth::fromUser($user);
+            // Gerar token JWT
+            $token = JWTAuth::fromUser($user);
 
-        return response()->json([
-            'success' => true,
-            'user' => $user,
-            'token' => $token
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'user' => $user,
+                'token' => $token
+            ], status: 200);
+
+        } catch (QueryException $e) {
+            // Captura erros do banco (por exemplo, violação de unique, not null)
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'database' => $e->getMessage()
+                ]
+            ], status: 400);
+        } catch (\Exception $e) {
+            // Outros erros inesperados
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'general' => $e->getMessage()
+                ]
+            ], status: 500);
+        }
     }
+
+
 
     /**
      * Login de usuário
@@ -59,7 +84,7 @@ class AuthController extends Controller
                 'message' => 'Credenciais inválidas'
             ], 401);
         }
-    
+
         return response()->json([
             'success' => true,
             'token' => $token
