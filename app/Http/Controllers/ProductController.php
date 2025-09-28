@@ -44,9 +44,6 @@ class ProductController extends Controller
         ]);
         try {
             $product = ProductModel::create([
-
-
-
                 'average_cost'=> $data['average_cost'],
                 'rental_price'  => $data['rental_price'],
                 'is_dynamic_sale_price' => $data['is_dynamic_sale_price'],
@@ -54,7 +51,6 @@ class ProductController extends Controller
                 'product_code' => $data['product_code'],
                 'description' => $data['description'],
                 'category_id' => $data['category_id'],
-                'supplier_id' => $data['supplier_id'],
                 'unit_id' => $data['unit_id'],
                 'cost_price' => $data['cost_price'],
                 'sale_price' => $data['sale_price'],
