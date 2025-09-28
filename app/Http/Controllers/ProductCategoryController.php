@@ -88,8 +88,7 @@ class ProductCategoryController extends Controller
         }
 
         try {
-            $productCategory = ProductCategoryModel::where('category_id', $data['category_id']);
-            //$productCategory = ProductCategoryModel::findOrFail(category_id: $data['category_id']);
+            $productCategory = ProductCategoryModel::findOrFail(id: $data['id']);
 
             $productCategory->update([
                 'name' => $data['name'] ?? $productCategory->name,
