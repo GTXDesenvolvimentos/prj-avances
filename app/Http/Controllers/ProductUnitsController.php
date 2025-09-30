@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProductUnitsModel;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ProductUnitsController extends Controller
 {
@@ -20,7 +22,52 @@ class ProductUnitsController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->json()->all();
+        echo json_encode($data);
+
+        $validator = Validator::make($data, [
+            'name' => 'required|string|min:1',
+            'description' => 'required|string|min:6',
+        ]);
+        try {
+            $product = ProductCategoryModel::create([
+                'name' => $data['name'],
+                'description' => $data['description'],
+                'company_id' => $data['company_id'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $product,
+            ], 201);
+
+        } catch (QueryException $e) {
+            // Captura erros do banco (por exemplo, violação de unique, not null)
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'database' => $e->getMessage()
+                ]
+            ], status: 400);
+        } catch (\Exception $e) {
+            // Outros erros inesperados
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'general' => $e->getMessage()
+                ]
+            ], status: 500);
+        }
+
+
+
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
     }
 
     /**
