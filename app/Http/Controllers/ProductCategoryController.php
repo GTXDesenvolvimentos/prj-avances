@@ -10,18 +10,32 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductCategoryController extends Controller
 {
-     /**
-     * Display a listing of the resource.
-     */
+
     public function index()
     {
-       //
+        //
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request)
+    public function show(Request $request)
+    {
+        try {
+            $productCategories = ProductCategoryModel::all();
+
+            return response()->json([
+                'success' => true,
+                'data' => $productCategories,
+                'count' => $productCategories->count()
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
+    }
+
+    public function store(Request $request)
     {
         $data = $request->json()->all();
         echo json_encode($data);
@@ -32,8 +46,9 @@ class ProductCategoryController extends Controller
         ]);
         try {
             $product = ProductCategoryModel::create([
-                'name'=> $data['name'],
+                'name' => $data['name'],
                 'description' => $data['description'],
+                'company_id' => $data['company_id'],
             ]);
 
             return response()->json([
@@ -99,6 +114,48 @@ class ProductCategoryController extends Controller
                 'success' => true,
                 'message' => 'Categoria atualizada com sucesso!',
                 'data' => $productCategory,
+            ], 200);
+
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['database' => $e->getMessage()]
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
+    }
+
+    public function destroy(Request $request)
+    {
+        $data = $request->json()->all();
+
+        // Validação do ID
+        $validator = Validator::make($data, [
+            'id' => 'required|integer|exists:product_categories,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $productCategory = ProductCategoryModel::findOrFail($data['id']);
+            $productCategory->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Category successfully deleted!',
+                'data' => [
+                    'id' => $data['id'],
+                    'deleted_at' => now()
+                ]
             ], 200);
 
         } catch (QueryException $e) {

@@ -15,6 +15,7 @@ class ProductCategoryModel extends Model
         'id',
         'name',
         'description',
-        'status'
+        'status',
+        'company_id'
     ];
 }
