@@ -26,19 +26,19 @@ class ProductUnitsController extends Controller
         echo json_encode($data);
 
         $validator = Validator::make($data, [
-            'name' => 'required|string|min:1',
+            'symbol' => 'required|string|min:1',
             'description' => 'required|string|min:6',
         ]);
         try {
-            $product = ProductCategoryModel::create([
-                'name' => $data['name'],
+            $units = ProductUnitsModel::create([
+                'symbol' => $data['symbol'],
                 'description' => $data['description'],
                 'company_id' => $data['company_id'],
             ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $product,
+                'data' => $units,
             ], 201);
 
         } catch (QueryException $e) {
@@ -73,10 +73,25 @@ class ProductUnitsController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(ProductUnits $productUnits)
+    public function show(Request $request)
     {
-        //
+        try {
+            $units = ProductUnitsModel::all();
+
+            return response()->json([
+                'success' => true,
+                'data' => $units,
+                'count' => $units->count()
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
     }
+
 
     /**
      * Update the specified resource in storage.
