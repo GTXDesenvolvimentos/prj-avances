@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProductCategory;
 use App\Models\ProductCategoryModel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -10,71 +9,104 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductCategoryController extends Controller
 {
-     /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-       //
+        try {
+            $user = auth()->user();
+            $limit = (int) $request->query('limit', 15);
+            $search = trim($request->query('search'), '"\'');
+
+            $query = ProductCategoryModel::where('company_id', $user->company_id);
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $categories = $query->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => $categories->items(),
+                'pagination' => [
+                    'page' => $categories->currentPage(),
+                    'limit' => $categories->perPage(),
+                    'page_count' => $categories->lastPage(),
+                    'total_count' => $categories->total(),
+                ],
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'database' => $e->getMessage(),
+                ],
+            ], status: 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'general' => $e->getMessage(),
+                ],
+            ], status: 500);
+        }
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create(Request $request)
     {
         $data = $request->json()->all();
-        echo json_encode($data);
 
         $validator = Validator::make($data, [
             'name' => 'required|string|min:1',
             'description' => 'required|string|min:6',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
         try {
-            $product = ProductCategoryModel::create([
-                'name'=> $data['name'],
+            $companyId = auth()->user()->company_id;
+
+            $category = ProductCategoryModel::create([
+                'name' => $data['name'],
                 'description' => $data['description'],
+                'company_id' => $companyId,
+
             ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $product,
+                'data' => $category,
             ], 201);
-
         } catch (QueryException $e) {
             // Captura erros do banco (por exemplo, violação de unique, not null)
             return response()->json([
                 'success' => false,
                 'errors' => [
-                    'database' => $e->getMessage()
-                ]
+                    'database' => $e->getMessage(),
+                ],
             ], status: 400);
         } catch (\Exception $e) {
             // Outros erros inesperados
             return response()->json([
                 'success' => false,
                 'errors' => [
-                    'general' => $e->getMessage()
-                ]
+                    'general' => $e->getMessage(),
+                ],
             ], status: 500);
-        }
-
-
-
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
         }
     }
 
-    public function update(Request $request)
+    public function update(Request $request, $id)
     {
-        $data = $request->json()->all();
+        $data = $request->all();
 
-        // Validação dos dados
         $validator = Validator::make($data, [
             'name' => 'sometimes|required|string|min:1',
             'description' => 'sometimes|required|string|min:6',
@@ -83,13 +115,12 @@ class ProductCategoryController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
-            $productCategory = ProductCategoryModel::where('category_id', $data['category_id']);
-            //$productCategory = ProductCategoryModel::findOrFail(category_id: $data['category_id']);
+            $productCategory = ProductCategoryModel::findOrFail($id);
 
             $productCategory->update([
                 'name' => $data['name'] ?? $productCategory->name,
@@ -101,16 +132,33 @@ class ProductCategoryController extends Controller
                 'message' => 'Categoria atualizada com sucesso!',
                 'data' => $productCategory,
             ], 200);
-
         } catch (QueryException $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['database' => $e->getMessage()]
+                'errors' => ['database' => $e->getMessage()],
             ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => $e->getMessage()]
+                'errors' => ['general' => $e->getMessage()],
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $category = ProductCategoryModel::findOrFail($id);
+            $category->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Categoria removida com sucesso!',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()],
             ], 500);
         }
     }
