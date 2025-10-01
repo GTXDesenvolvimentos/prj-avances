@@ -21,8 +21,39 @@ class ProductController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
+                    ->orWhere('name', 'LIKE', "%{$search}%")
                     ->orWhere('description', 'LIKE', "%{$search}%");
             });
+        }
+
+        if ($request->filled('unit_id')) {
+            $query->where('unit_id', $request->query('unit_id'));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->query('category_id'));
+        }
+
+        if ($request->filled('availability')) {
+            $availabilities = explode(',', $request->query('availability'));
+
+            $query->where(function ($q) use ($availabilities) {
+                foreach ($availabilities as $availability) {
+                    $q->orWhereRaw('FIND_IN_SET(?, availability)', [$availability]);
+                }
+            });
+        }
+
+        if ($request->has('is_dynamic_sale_price')) {
+            $query->where('is_dynamic_sale_price', (bool) $request->query('is_dynamic_sale_price'));
+        }
+
+        if ($request->has('is_dynamic_rental_price')) {
+            $query->where('is_dynamic_rental_price', (bool) $request->query('is_dynamic_rental_price'));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->query('status'));
         }
 
         $products = $query->paginate($limit);
