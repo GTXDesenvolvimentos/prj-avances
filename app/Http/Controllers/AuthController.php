@@ -20,11 +20,17 @@ class AuthController extends Controller
         // Garantir que Laravel interprete o JSON
         $data = $request->json()->all();
 
+        $lastCompanyId = User::max('company_id');
+
+        // Adiciona 1 (começando de 1 se estiver vazio)
+        $nextCompanyId = ($lastCompanyId ?? 0) + 1;
+
+
         // Validação inicial
         $validator = Validator::make($data, [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6|confirmed', // password_confirmation obrigatório
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
         if ($validator->fails()) {
@@ -40,6 +46,7 @@ class AuthController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
+                'company_id' => $nextCompanyId,
             ]);
 
             // Gerar token JWT
