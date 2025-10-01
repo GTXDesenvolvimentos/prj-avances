@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProductCategory;
 use App\Models\ProductCategoryModel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class ProductCategoryController extends Controller
 {
@@ -37,6 +37,7 @@ class ProductCategoryController extends Controller
 
     public function store(Request $request)
     {
+        $company_id = JWTAuth::parseToken()->authenticate()->company_id;
         $data = $request->json()->all();
         echo json_encode($data);
 
@@ -48,7 +49,7 @@ class ProductCategoryController extends Controller
             $product = ProductCategoryModel::create([
                 'name' => $data['name'],
                 'description' => $data['description'],
-                'company_id' => $data['company_id'],
+                'company_id' => $company_id,
             ]);
 
             return response()->json([
@@ -83,7 +84,9 @@ class ProductCategoryController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+            
     }
+        
 
     public function update(Request $request)
     {
