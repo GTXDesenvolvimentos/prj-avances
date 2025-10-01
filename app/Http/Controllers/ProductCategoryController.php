@@ -10,89 +10,104 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class ProductCategoryController extends Controller
 {
-
-    public function index()
-    {
-        //
-    }
-
-    public function show(Request $request)
+    public function index(Request $request)
     {
         try {
-            $productCategories = ProductCategoryModel::all();
+            $user = auth()->user();
+            $limit = (int) $request->query('limit', 15);
+            $search = trim($request->query('search'), '"\'');
+
+            $query = ProductCategoryModel::where('company_id', $user->company_id);
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $categories = $query->paginate($limit);
 
             return response()->json([
                 'success' => true,
-                'data' => $productCategories,
-                'count' => $productCategories->count()
+                'data' => $categories->items(),
+                'pagination' => [
+                    'page' => $categories->currentPage(),
+                    'limit' => $categories->perPage(),
+                    'page_count' => $categories->lastPage(),
+                    'total_count' => $categories->total(),
+                ],
             ], 200);
-
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'database' => $e->getMessage(),
+                ],
+            ], status: 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => $e->getMessage()]
-            ], 500);
+                'errors' => [
+                    'general' => $e->getMessage(),
+                ],
+            ], status: 500);
         }
     }
 
     public function store(Request $request)
     {
-        $company_id = JWTAuth::parseToken()->authenticate()->company_id;
         $data = $request->json()->all();
-        echo json_encode($data);
 
         $validator = Validator::make($data, [
             'name' => 'required|string|min:1',
             'description' => 'required|string|min:6',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
         try {
-            $product = ProductCategoryModel::create([
+            $companyId = auth()->user()->company_id;
+
+            $category = ProductCategoryModel::create([
                 'name' => $data['name'],
                 'description' => $data['description'],
-                'company_id' => $company_id,
+                'company_id' => $companyId,
+
             ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $product,
+                'data' => $category,
             ], 201);
-
         } catch (QueryException $e) {
             // Captura erros do banco (por exemplo, violação de unique, not null)
             return response()->json([
                 'success' => false,
                 'errors' => [
-                    'database' => $e->getMessage()
-                ]
+                    'database' => $e->getMessage(),
+                ],
             ], status: 400);
         } catch (\Exception $e) {
             // Outros erros inesperados
             return response()->json([
                 'success' => false,
                 'errors' => [
-                    'general' => $e->getMessage()
-                ]
+                    'general' => $e->getMessage(),
+                ],
             ], status: 500);
         }
-
-
-
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-            
     }
-        
 
-    public function update(Request $request)
+    public function update(Request $request, $id)
     {
-        $data = $request->json()->all();
+        $data = $request->all();
 
-        // Validação dos dados
         $validator = Validator::make($data, [
             'name' => 'sometimes|required|string|min:1',
             'description' => 'sometimes|required|string|min:6',
@@ -101,12 +116,12 @@ class ProductCategoryController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
-            $productCategory = ProductCategoryModel::findOrFail(id: $data['id']);
+            $productCategory = ProductCategoryModel::findOrFail($id);
 
             $productCategory->update([
                 'name' => $data['name'] ?? $productCategory->name,
@@ -118,58 +133,33 @@ class ProductCategoryController extends Controller
                 'message' => 'Categoria atualizada com sucesso!',
                 'data' => $productCategory,
             ], 200);
-
         } catch (QueryException $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['database' => $e->getMessage()]
+                'errors' => ['database' => $e->getMessage()],
             ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => $e->getMessage()]
+                'errors' => ['general' => $e->getMessage()],
             ], 500);
         }
     }
 
-    public function destroy(Request $request)
+    public function destroy($id)
     {
-        $data = $request->json()->all();
-
-        // Validação do ID
-        $validator = Validator::make($data, [
-            'id' => 'required|integer|exists:product_categories,id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         try {
-            $productCategory = ProductCategoryModel::findOrFail($data['id']);
-            $productCategory->delete();
+            $category = ProductCategoryModel::findOrFail($id);
+            $category->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Category successfully deleted!',
-                'data' => [
-                    'id' => $data['id'],
-                    'deleted_at' => now()
-                ]
+                'message' => 'Categoria removida com sucesso!',
             ], 200);
-
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['database' => $e->getMessage()]
-            ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => $e->getMessage()]
+                'errors' => ['general' => $e->getMessage()],
             ], 500);
         }
     }

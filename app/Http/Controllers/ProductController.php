@@ -2,82 +2,110 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use App\Models\ProductModel;
 use Illuminate\Support\Facades\Validator;
-
-
-
+use Illuminate\Database\QueryException;
+use App\Models\ProductModel;
 
 class ProductController extends Controller
 {
 
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        $products = ProductModel::getAllProducts();
-        return response()->json($products);
+        $user = $request->user();
+        $limit = (int) $request->query('limit', 25);
+        $search = trim($request->query('search', ''), '"\'');
+
+        $query = ProductModel::where('company_id', $user->company_id);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('product_code', 'LIKE', "%{$search}%")
+                    ->orWhere('name', 'LIKE', "%{$search}%")
+                    ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('unit_id')) {
+            $query->where('unit_id', $request->query('unit_id'));
+        }
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->query('category_id'));
+        }
+
+        if ($request->filled('availability')) {
+            $availabilities = explode(',', $request->query('availability'));
+
+            $query->where(function ($q) use ($availabilities) {
+                foreach ($availabilities as $availability) {
+                    $q->orWhereRaw('FIND_IN_SET(?, availability)', [$availability]);
+                }
+            });
+        }
+
+        if ($request->has('is_dynamic_sale_price')) {
+            $query->where('is_dynamic_sale_price', (bool) $request->query('is_dynamic_sale_price'));
+        }
+
+        if ($request->has('is_dynamic_rental_price')) {
+            $query->where('is_dynamic_rental_price', (bool) $request->query('is_dynamic_rental_price'));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->query('status'));
+        }
+
+        $products = $query->paginate($limit);
+
+        return response()->json([
+            'success' => true,
+            'data' => $products->items(),
+            'pagination' => [
+                'page' => $products->currentPage(),
+                'limit' => $products->perPage(),
+                'page_count' => $products->lastPage(),
+                'total_count' => $products->total(),
+            ],
+        ], 200);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Display the specified resource.
      */
-    public function create(Request $request)
+    public function show(Request $request, $id)
     {
+        $user = $request->user();
 
+        $product = ProductModel::where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
 
-
-        $data = $request->json()->all();
-        echo json_encode($data);
-
-        $validator = Validator::make($data, [
-            'product_code' => 'required|string|min:5',
-            'description' => 'required|string|min:6',
-            'category_id' => 'required|string|min:1',
-            'unit_id' => 'required|string|min:1',
-        ]);
-        try {
-            $product = ProductModel::create([
-                'average_cost'=> $data['average_cost'],
-                'rental_price'  => $data['rental_price'],
-                'is_dynamic_sale_price' => $data['is_dynamic_sale_price'],
-                'is_dynamic_rental_price'   => $data['is_dynamic_rental_price'],
-                'product_code' => $data['product_code'],
-                'description' => $data['description'],
-                'category_id' => $data['category_id'],
-                'unit_id' => $data['unit_id'],
-                'sale_price' => $data['sale_price'],
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => $product,
-            ], 201);
-
-        } catch (QueryException $e) {
-            // Captura erros do banco (por exemplo, violação de unique, not null)
+        if (!$product) {
             return response()->json([
                 'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage()
-                ]
-            ], status: 400);
-        } catch (\Exception $e) {
-            // Outros erros inesperados
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage()
-                ]
-            ], status: 500);
+                'errors' => ['general' => 'Produto não encontrado']
+            ], 404);
         }
 
+        return response()->json([
+            'success' => true,
+            'data' => $product
+        ], 200);
+    }
 
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        $data = $request->json()->all();
 
+        $validator = Validator::make($data, [
+            'unit_id' => 'required|integer',
+            'category_id' => 'required|integer',
+            'name' => 'required|string|min:6',
+            'availability' => 'nullable|array',
+            'availability.*' => 'in:sale,rental,internal',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -86,23 +114,73 @@ class ProductController extends Controller
             ], 422);
         }
 
+        try {
+            $product = ProductModel::create([
+                'unit_id' => $data['unit_id'],
+                'category_id' => $data['category_id'],
+                'company_id' => $user->company_id,
+                'product_code' => $data['product_code'] ?? null,
+                'name' => $data['name'],
+                'description' => $data['description'],
+                'availability' => isset($data['availability']) ? implode(',', $data['availability']) : null,
+                'average_cost' => $data['average_cost'] ?? 0,
+                'sale_price' => $data['sale_price'] ?? 0,
+                'rental_price' => $data['rental_price'] ?? 0,
+                'is_dynamic_sale_price' => $data['is_dynamic_sale_price'] ?? false,
+                'is_dynamic_rental_price' => $data['is_dynamic_rental_price'] ?? false,
+            ]);
 
+            return response()->json(['success' => true, 'data' => $product], 201);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['database' => $e->getMessage()]
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function update(Request $request, $id)
     {
-        //
-    }
+        $user = $request->user();
+        $product = ProductModel::where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(ProductModel $productModel)
-    {
-        //
+        if (!$product) {
+            return response()->json(['success' => false, 'errors' => ['general' => 'Produto não encontrado']], 404);
+        }
+
+        $data = $request->json()->all();
+
+        $validator = Validator::make($data, [
+            'unit_id' => 'required|integer',
+            'category_id' => 'required|integer',
+            'name' => 'required|string|min:6',
+            'availability' => 'nullable|array',
+            'availability.*' => 'in:sale,rental,internal',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $product->update(array_merge($data, [
+                'availability' => isset($data['availability']) ? implode(',', $data['availability']) : $product->availability,
+            ]));
+
+            return response()->json(['success' => true, 'data' => $product], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'errors' => ['general' => $e->getMessage()]], 500);
+        }
     }
 
     /**
@@ -113,22 +191,27 @@ class ProductController extends Controller
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ProductModel $productModel)
-    {
-        //
-    }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove um produto (soft delete recomendado).
      */
-    public function destroy(ProductModel $productModel)
+    public function destroy($id)
     {
-        //
+        $user = request()->user();
+        $product = ProductModel::where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
+
+        if (!$product) {
+            return response()->json(['success' => false, 'errors' => ['general' => 'Produto não encontrado']], 404);
+        }
+
+        try {
+            $product->delete();
+
+            return response()->json(['success' => true, 'message' => 'Produto removido com sucesso'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'errors' => ['general' => $e->getMessage()]], 500);
+        }
     }
-
-
-
 }
