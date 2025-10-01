@@ -7,15 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProductCategoryModel extends Model
 {
-    use HasFactory;
+        use HasFactory;
 
-    protected $table = 'product_categories';
+        protected $table = 'product_categories';
 
-    protected $fillable = [
-        'category_id',
-        'company_id',
-        'name',
-        'description',
-        'status'
-    ];
+        protected $fillable = [
+                'id',
+                'company_id',
+                'name',
+                'description',
+                'status',
+        ];
 }

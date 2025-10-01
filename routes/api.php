@@ -17,14 +17,14 @@ Route::group(['middleware' => ['jwt.auth']], function () {
 
     // Products routes
     Route::get('products', [ProductController::class, 'index']);
-    Route::get('products/{id}', [ProductController::class, 'show']);    
+    Route::get('products/{id}', [ProductController::class, 'show']);
     Route::post('products', [ProductController::class, 'store']);
     Route::put('products/{id}', [ProductController::class, 'update']);
     Route::delete('products/{id}', [ProductController::class, 'destroy']);
 
     // Categories routes
     Route::get('categories', [ProductCategoryController::class, 'index']);
-    Route::post('categories', [ProductCategoryController::class, 'create']);
+    Route::post('categories', [ProductCategoryController::class, 'store']);
     Route::put('categories/{id}', [ProductCategoryController::class, 'update']);
     Route::delete('categories/{id}', [ProductCategoryController::class, 'destroy']);
 

@@ -6,6 +6,7 @@ use App\Models\ProductCategoryModel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class ProductCategoryController extends Controller
 {
@@ -54,7 +55,7 @@ class ProductCategoryController extends Controller
         }
     }
 
-    public function create(Request $request)
+    public function store(Request $request)
     {
         $data = $request->json()->all();
 
