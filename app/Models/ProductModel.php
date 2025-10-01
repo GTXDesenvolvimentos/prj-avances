@@ -11,13 +11,23 @@ class ProductModel extends Model
 
     protected $table = 'products'; // nome da tabela
     protected $fillable = [
-        'product_code',
-        'description',
-        'category_id',
-        'supplier_id',
+        'id',
         'unit_id',
-        'cost_price',
+        'category_id',
+        'company_id',
+        'product_code',
+        "name",
+        'description',
+        'availability',
+        'average_cost',
         'sale_price',
+        'rental_price',
+        'is_dynamic_sale_price',
+        'is_dynamic_rental_price',
+    ];
+    protected $casts = [
+        'is_dynamic_sale_price' => 'boolean',
+        'is_dynamic_rental_price' => 'boolean',
     ];
 
     public $timestamps = false; // sua tabela não tem created_at/updated_at
