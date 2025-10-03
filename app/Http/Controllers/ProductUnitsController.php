@@ -52,7 +52,7 @@ class ProductUnitsController extends Controller
 
         $validator = Validator::make($data, [
             'symbol' => 'required|string|min:1',
-            'description' => 'required|string|min:6',
+            'description' => 'required|string|min:4',
         ]);
 
         if ($validator->fails()) {
@@ -109,7 +109,7 @@ class ProductUnitsController extends Controller
         $data = $request->all();
         $validator = Validator::make($data, [
             'symbol' => 'sometimes|required|string|min:1',
-            'description' => 'sometimes|required|string|min:6',
+            'description' => 'sometimes|required|string|min:4',
         ]);
 
         if ($validator->fails()) {

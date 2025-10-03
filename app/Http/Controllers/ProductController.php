@@ -16,7 +16,7 @@ class ProductController extends Controller
         $limit = (int) $request->query('limit', 25);
         $search = trim($request->query('search', ''), '"\'');
 
-        $query = ProductModel::where('company_id', $user->company_id);
+        $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -77,7 +77,8 @@ class ProductController extends Controller
     {
         $user = $request->user();
 
-        $product = ProductModel::where('id', $id)
+        $product = ProductModel::with(['category', 'unit'])
+            ->where('id', $id)
             ->where('company_id', $user->company_id)
             ->first();
 
@@ -102,7 +103,7 @@ class ProductController extends Controller
         $validator = Validator::make($data, [
             'unit_id' => 'required|integer',
             'category_id' => 'required|integer',
-            'name' => 'required|string|min:6',
+            'name' => 'required|string|min:2',
             'availability' => 'nullable|array',
             'availability.*' => 'in:sale,rental,internal',
         ]);
@@ -160,7 +161,7 @@ class ProductController extends Controller
         $validator = Validator::make($data, [
             'unit_id' => 'required|integer',
             'category_id' => 'required|integer',
-            'name' => 'required|string|min:6',
+            'name' => 'required|string|min:2',
             'availability' => 'nullable|array',
             'availability.*' => 'in:sale,rental,internal',
         ]);

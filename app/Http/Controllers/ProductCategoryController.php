@@ -61,7 +61,7 @@ class ProductCategoryController extends Controller
 
         $validator = Validator::make($data, [
             'name' => 'required|string|min:1',
-            'description' => 'required|string|min:6',
+            'description' => 'required|string|min:4',
         ]);
 
         if ($validator->fails()) {
@@ -110,7 +110,7 @@ class ProductCategoryController extends Controller
 
         $validator = Validator::make($data, [
             'name' => 'sometimes|required|string|min:1',
-            'description' => 'sometimes|required|string|min:6',
+            'description' => 'sometimes|required|string|min:4',
         ]);
 
         if ($validator->fails()) {

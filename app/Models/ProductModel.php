@@ -32,6 +32,18 @@ class ProductModel extends Model
 
     public $timestamps = false; // sua tabela não tem created_at/updated_at
 
+     // Relacionamento com Category
+    public function category()
+    {
+        return $this->belongsTo(ProductCategoryModel::class);
+    }
+
+    // Relacionamento com Unit
+    public function unit()
+    {
+        return $this->belongsTo(ProductUnitsModel::class);
+    }
+
     // ============================
     // Métodos CRUD personalizados
     // ============================
