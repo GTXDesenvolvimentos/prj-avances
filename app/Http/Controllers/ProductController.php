@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use GuzzleHttp\Psr7\Query;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
@@ -17,27 +16,13 @@ class ProductController extends Controller
         $limit = (int) $request->query('limit', 25);
         $search = trim($request->query('search', ''), '"\'');
 
-
         $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
-
-        $query = ProductModel::withTrashed()
-            ->with([
-                'category' => function ($q) {
-                    $q->withTrashed(); // inclui categorias soft deleted
-                },
-                'unit' => function ($q) {
-                    $q->withTrashed(); // inclui unidades soft deleted
-                }
-            ])
-            ->where('company_id', $user->company_id);
-
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
                     ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%")
-                    ->withTrashed();
+                    ->orWhere('description', 'LIKE', "%{$search}%");
             });
         }
 
@@ -80,7 +65,6 @@ class ProductController extends Controller
                 'page' => $products->currentPage(),
                 'limit' => $products->perPage(),
                 'page_count' => $products->lastPage(),
-
                 'total_count' => $products->total(),
             ],
         ], 200);
@@ -96,8 +80,7 @@ class ProductController extends Controller
         $product = ProductModel::with(['category', 'unit'])
             ->where('id', $id)
             ->where('company_id', $user->company_id)
-            ->first()
-            ->withTrashed();
+            ->first();
 
         if (!$product) {
             return response()->json([
