@@ -93,7 +93,8 @@ class ProductController extends Controller
     {
         $user = $request->user();
 
-         $product = ProductModel::withTrashed()
+        // Aplica withTrashed na query principal e nos relacionamentos
+        $product = ProductModel::withTrashed()
             ->with([
                 'category' => function ($q) {
                     $q->withTrashed(); // inclui categorias soft deleted
@@ -102,15 +103,9 @@ class ProductController extends Controller
                     $q->withTrashed(); // inclui unidades soft deleted
                 }
             ])
-            ->where('company_id', $user->company_id);
-
-
-        $product = ProductModel::with(['category', 'unit'])
-        
             ->where('id', $id)
             ->where('company_id', $user->company_id)
-            ->first()
-            ->withTrashed();
+            ->first();
 
         if (!$product) {
             return response()->json([
@@ -124,6 +119,7 @@ class ProductController extends Controller
             'data' => $product
         ], 200);
     }
+
 
     public function store(Request $request)
     {
