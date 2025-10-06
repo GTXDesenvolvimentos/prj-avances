@@ -67,6 +67,7 @@ class ProductController extends Controller
                 'page' => $products->currentPage(),
                 'limit' => $products->perPage(),
                 'page_count' => $products->lastPage(),
+                
                 'total_count' => $products->total(),
             ],
         ], 200);
