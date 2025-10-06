@@ -20,6 +20,18 @@ class ProductController extends Controller
 
         $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
 
+        $query = ProductModel::withTrashed()
+            ->with([
+                'category' => function ($q) {
+                    $q->withTrashed(); // inclui categorias soft deleted
+                },
+                'unit' => function ($q) {
+                    $q->withTrashed(); // inclui unidades soft deleted
+                }
+            ])
+            ->where('company_id', $user->company_id);
+
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
@@ -68,7 +80,7 @@ class ProductController extends Controller
                 'page' => $products->currentPage(),
                 'limit' => $products->perPage(),
                 'page_count' => $products->lastPage(),
-                
+
                 'total_count' => $products->total(),
             ],
         ], 200);
