@@ -149,13 +149,27 @@ class ProductCategoryController extends Controller
     public function destroy($id)
     {
         try {
+            // Busca a categoria (lança 404 se não existir)
             $category = ProductCategoryModel::findOrFail($id);
+
+            // Soft delete
             $category->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Categoria removida com sucesso!',
+                'message' => 'Categoria marcada como excluída com sucesso!',
+                'data' => [
+                    'id' => $category->id,
+                    'deleted_at' => $category->deleted_at, // data do soft delete
+                ],
             ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => 'Categoria não encontrada.'],
+            ], 404);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -163,4 +177,24 @@ class ProductCategoryController extends Controller
             ], 500);
         }
     }
+
+
+
+    // public function destroy($id)
+    // {
+    //     try {
+    //         $category = ProductCategoryModel::findOrFail($id);
+    //         $category->delete();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Categoria removida com sucesso!',
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'errors' => ['general' => $e->getMessage()],
+    //         ], 500);
+    //     }
+    // }
 }

@@ -147,20 +147,35 @@ class ProductUnitsController extends Controller
 
 
     public function destroy($id)
-    {
-        try {
-            $unit = ProductUnitsModel::findOrFail($id);
-            $unit->delete();
+{
+    try {
+        // Busca a unidade (lança 404 se não existir)
+        $unit = ProductUnitsModel::findOrFail($id);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Unidade removida com sucesso!'
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()]
-            ], 500);
-        }
+        // Soft delete
+        $unit->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Unidade marcada como excluída com sucesso!',
+            'data' => [
+                'id' => $unit->id,
+                'deleted_at' => $unit->deleted_at,
+            ],
+        ], 200);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'success' => false,
+            'errors' => ['general' => 'Unidade não encontrada.'],
+        ], 404);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'errors' => ['general' => $e->getMessage()],
+        ], 500);
     }
+}
+
 }

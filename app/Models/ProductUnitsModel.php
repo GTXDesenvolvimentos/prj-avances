@@ -3,11 +3,12 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 
 class ProductUnitsModel extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'units';
 
@@ -18,6 +19,9 @@ class ProductUnitsModel extends Model
         'status',
         'company_id'
     ];
+
+        // 👇 Opcional (útil para clareza e compatibilidade com versões antigas do Laravel)
+    protected $dates = ['deleted_at'];
 
    
 }
