@@ -93,7 +93,20 @@ class ProductController extends Controller
     {
         $user = $request->user();
 
+         $product = ProductModel::withTrashed()
+            ->with([
+                'category' => function ($q) {
+                    $q->withTrashed(); // inclui categorias soft deleted
+                },
+                'unit' => function ($q) {
+                    $q->withTrashed(); // inclui unidades soft deleted
+                }
+            ])
+            ->where('company_id', $user->company_id);
+
+
         $product = ProductModel::with(['category', 'unit'])
+        
             ->where('id', $id)
             ->where('company_id', $user->company_id)
             ->first()
