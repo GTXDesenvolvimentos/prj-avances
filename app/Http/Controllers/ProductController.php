@@ -17,38 +17,26 @@ class ProductController extends Controller
         $limit = (int) $request->query('limit', 25);
         $search = trim($request->query('search', ''), '"\'');
 
-        // Aplica withTrashed na query principal
-        $query = ProductModel::withTrashed()
-            ->with([
-                'category' => function ($q) {
-                    $q->withTrashed(); // inclui categorias soft deleted
-                },
-                'unit' => function ($q) {
-                    $q->withTrashed(); // inclui unidades soft deleted
-                }
-            ])
-            ->where('company_id', $user->company_id);
 
-        // Filtro de busca
+        $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
                     ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%");
+                    ->orWhere('description', 'LIKE', "%{$search}%")
+                    ->withTrashed();
             });
         }
 
-        // Filtro por unidade
         if ($request->filled('unit_id')) {
             $query->where('unit_id', $request->query('unit_id'));
         }
 
-        // Filtro por categoria
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->query('category_id'));
         }
 
-        // Filtro por disponibilidade
         if ($request->filled('availability')) {
             $availabilities = explode(',', $request->query('availability'));
 
@@ -59,7 +47,6 @@ class ProductController extends Controller
             });
         }
 
-        // Filtro por preços dinâmicos
         if ($request->has('is_dynamic_sale_price')) {
             $query->where('is_dynamic_sale_price', (bool) $request->query('is_dynamic_sale_price'));
         }
@@ -68,12 +55,10 @@ class ProductController extends Controller
             $query->where('is_dynamic_rental_price', (bool) $request->query('is_dynamic_rental_price'));
         }
 
-        // Filtro por status
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));
         }
 
-        // Paginação
         $products = $query->paginate($limit);
 
         return response()->json([
@@ -83,11 +68,11 @@ class ProductController extends Controller
                 'page' => $products->currentPage(),
                 'limit' => $products->perPage(),
                 'page_count' => $products->lastPage(),
+                
                 'total_count' => $products->total(),
             ],
         ], 200);
     }
-
 
     /**
      * Display the specified resource.
@@ -115,40 +100,55 @@ class ProductController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function show(Request $request, $id)
+    public function store(Request $request)
     {
         $user = $request->user();
+        $data = $request->json()->all();
 
-        // Aplica withTrashed antes de executar a query
-        $product = ProductModel::withTrashed()
-            ->with([
-                'category' => function ($q) {
-                    $q->withTrashed(); // inclui categoria soft deleted
-                },
-                'unit' => function ($q) {
-                    $q->withTrashed(); // inclui unidade soft deleted
-                }
-            ])
-            ->where('id', $id)
-            ->where('company_id', $user->company_id)
-            ->first();
+        $validator = Validator::make($data, [
+            'unit_id' => 'required|integer',
+            'category_id' => 'required|integer',
+            'name' => 'required|string|min:2',
+            'availability' => 'nullable|array',
+            'availability.*' => 'in:sale,rental,internal',
+        ]);
 
-        if (!$product) {
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => 'Produto não encontrado']
-            ], 404);
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $product
-        ], 200);
-    }
+        try {
+            $product = ProductModel::create([
+                'unit_id' => $data['unit_id'],
+                'category_id' => $data['category_id'],
+                'company_id' => $user->company_id,
+                'product_code' => $data['product_code'] ?? null,
+                'name' => $data['name'],
+                'description' => $data['description'],
+                'availability' => isset($data['availability']) ? implode(',', $data['availability']) : null,
+                'average_cost' => $data['average_cost'] ?? 0,
+                'sale_price' => $data['sale_price'] ?? 0,
+                'rental_price' => $data['rental_price'] ?? 0,
+                'is_dynamic_sale_price' => $data['is_dynamic_sale_price'] ?? false,
+                'is_dynamic_rental_price' => $data['is_dynamic_rental_price'] ?? false,
+            ]);
 
+            return response()->json(['success' => true, 'data' => $product], 201);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['database' => $e->getMessage()]
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
+    }
 
     public function update(Request $request, $id)
     {
