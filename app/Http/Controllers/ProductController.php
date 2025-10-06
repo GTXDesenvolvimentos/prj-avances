@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use GuzzleHttp\Psr7\Query;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\QueryException;
@@ -80,7 +81,8 @@ class ProductController extends Controller
         $product = ProductModel::with(['category', 'unit'])
             ->where('id', $id)
             ->where('company_id', $user->company_id)
-            ->first();
+            ->first()
+            ->withTrashed();
 
         if (!$product) {
             return response()->json([
