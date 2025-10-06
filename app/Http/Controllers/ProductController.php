@@ -23,7 +23,8 @@ class ProductController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
                     ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%");
+                    ->orWhere('description', 'LIKE', "%{$search}%")
+                    ->withTrashed();
             });
         }
 
