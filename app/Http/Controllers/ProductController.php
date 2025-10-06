@@ -115,55 +115,40 @@ class ProductController extends Controller
         ], 200);
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function show(Request $request, $id)
     {
         $user = $request->user();
-        $data = $request->json()->all();
 
-        $validator = Validator::make($data, [
-            'unit_id' => 'required|integer',
-            'category_id' => 'required|integer',
-            'name' => 'required|string|min:2',
-            'availability' => 'nullable|array',
-            'availability.*' => 'in:sale,rental,internal',
-        ]);
+        // Aplica withTrashed antes de executar a query
+        $product = ProductModel::withTrashed()
+            ->with([
+                'category' => function ($q) {
+                    $q->withTrashed(); // inclui categoria soft deleted
+                },
+                'unit' => function ($q) {
+                    $q->withTrashed(); // inclui unidade soft deleted
+                }
+            ])
+            ->where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->first();
 
-        if ($validator->fails()) {
+        if (!$product) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+                'errors' => ['general' => 'Produto não encontrado']
+            ], 404);
         }
 
-        try {
-            $product = ProductModel::create([
-                'unit_id' => $data['unit_id'],
-                'category_id' => $data['category_id'],
-                'company_id' => $user->company_id,
-                'product_code' => $data['product_code'] ?? null,
-                'name' => $data['name'],
-                'description' => $data['description'],
-                'availability' => isset($data['availability']) ? implode(',', $data['availability']) : null,
-                'average_cost' => $data['average_cost'] ?? 0,
-                'sale_price' => $data['sale_price'] ?? 0,
-                'rental_price' => $data['rental_price'] ?? 0,
-                'is_dynamic_sale_price' => $data['is_dynamic_sale_price'] ?? false,
-                'is_dynamic_rental_price' => $data['is_dynamic_rental_price'] ?? false,
-            ]);
-
-            return response()->json(['success' => true, 'data' => $product], 201);
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['database' => $e->getMessage()]
-            ], 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()]
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $product
+        ], 200);
     }
+
 
     public function update(Request $request, $id)
     {
