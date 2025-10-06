@@ -17,7 +17,9 @@ class ProductController extends Controller
         $limit = (int) $request->query('limit', 25);
         $search = trim($request->query('search', ''), '"\'');
 
+
         $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
+        $query->withTrashed(); // aplica o withTrashed à query principal
 
         if ($search) {
             $query->where(function ($q) use ($search) {
