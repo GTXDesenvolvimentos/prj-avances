@@ -17,27 +17,38 @@ class ProductController extends Controller
         $limit = (int) $request->query('limit', 25);
         $search = trim($request->query('search', ''), '"\'');
 
+        // Aplica withTrashed na query principal
+        $query = ProductModel::withTrashed()
+            ->with([
+                'category' => function ($q) {
+                    $q->withTrashed(); // inclui categorias soft deleted
+                },
+                'unit' => function ($q) {
+                    $q->withTrashed(); // inclui unidades soft deleted
+                }
+            ])
+            ->where('company_id', $user->company_id);
 
-        $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
-        $query->withTrashed(); // aplica o withTrashed à query principal
-
+        // Filtro de busca
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
                     ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%")
-                    ->withTrashed();
+                    ->orWhere('description', 'LIKE', "%{$search}%");
             });
         }
 
+        // Filtro por unidade
         if ($request->filled('unit_id')) {
             $query->where('unit_id', $request->query('unit_id'));
         }
 
+        // Filtro por categoria
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->query('category_id'));
         }
 
+        // Filtro por disponibilidade
         if ($request->filled('availability')) {
             $availabilities = explode(',', $request->query('availability'));
 
@@ -48,6 +59,7 @@ class ProductController extends Controller
             });
         }
 
+        // Filtro por preços dinâmicos
         if ($request->has('is_dynamic_sale_price')) {
             $query->where('is_dynamic_sale_price', (bool) $request->query('is_dynamic_sale_price'));
         }
@@ -56,10 +68,12 @@ class ProductController extends Controller
             $query->where('is_dynamic_rental_price', (bool) $request->query('is_dynamic_rental_price'));
         }
 
+        // Filtro por status
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));
         }
 
+        // Paginação
         $products = $query->paginate($limit);
 
         return response()->json([
@@ -69,11 +83,11 @@ class ProductController extends Controller
                 'page' => $products->currentPage(),
                 'limit' => $products->perPage(),
                 'page_count' => $products->lastPage(),
-                
                 'total_count' => $products->total(),
             ],
         ], 200);
     }
+
 
     /**
      * Display the specified resource.
