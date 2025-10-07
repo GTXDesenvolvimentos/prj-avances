@@ -9,58 +9,51 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductUnitsController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $data = $request->json()->all();
-        echo json_encode($data);
-
-        $validator = Validator::make($data, [
-            'symbol' => 'required|string|min:1',
-            'description' => 'required|string|min:6',
-        ]);
         try {
-            $units = ProductUnitsModel::create([
-                'symbol' => $data['symbol'],
-                'description' => $data['description'],
-                'company_id' => $data['company_id'],
-            ]);
+            $user = $request->user();
+            $limit = (int) $request->query('limit', 25);
+            $search = trim($request->query('search'), '"\'');
+
+            $query = ProductUnitsModel::where('company_id', $user->company_id);
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('symbol', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $units = $query->paginate($limit);
 
             return response()->json([
                 'success' => true,
-                'data' => $units,
-            ], 201);
-
-        } catch (QueryException $e) {
-            // Captura erros do banco (por exemplo, violação de unique, not null)
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage()
-                ]
-            ], status: 400);
+                'data' => $units->items(),
+                'pagination' => [
+                    'page' => $units->currentPage(),
+                    'limit' => $units->perPage(),
+                    'page_count' => $units->lastPage(),
+                    'total_count' => $units->total(),
+                ],
+            ], 200);
         } catch (\Exception $e) {
-            // Outros erros inesperados
             return response()->json([
                 'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage()
-                ]
-            ], status: 500);
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
         }
+    }
 
+    public function store(Request $request)
+    {
+        $data = $request->all();
+        $user = $request->user();
 
-
+        $validator = Validator::make($data, [
+            'symbol' => 'required|string|min:1',
+            'description' => 'required|string|min:4',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -68,22 +61,40 @@ class ProductUnitsController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-    }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request)
-    {
         try {
-            $units = ProductUnitsModel::all();
+            $unit = ProductUnitsModel::create([
+                'symbol' => $data['symbol'],
+                'description' => $data['description'],
+                'company_id' => $user->company_id,
+            ]);
 
             return response()->json([
                 'success' => true,
-                'data' => $units,
-                'count' => $units->count()
-            ], 200);
+                'data' => $unit
+            ], 201);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['database' => $e->getMessage()]
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
+    }
 
+    public function show($id)
+    {
+        try {
+            $unit = ProductUnitsModel::findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $unit
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -93,19 +104,78 @@ class ProductUnitsController extends Controller
     }
 
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, ProductUnits $productUnits)
+    public function update(Request $request, $id)
     {
-        //
+        $data = $request->all();
+        $validator = Validator::make($data, [
+            'symbol' => 'sometimes|required|string|min:1',
+            'description' => 'sometimes|required|string|min:4',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $unit = ProductUnitsModel::findOrFail($id);
+
+            $unit->update([
+                'symbol' => $data['symbol'] ?? $unit->symbol,
+                'description' => $data['description'] ?? $unit->description,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Unidade atualizada com sucesso!',
+                'data' => $unit
+            ], 200);
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['database' => $e->getMessage()]
+            ], 400);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()]
+            ], 500);
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ProductUnits $productUnits)
-    {
-        //
+
+    public function destroy($id)
+{
+    try {
+        // Busca a unidade (lança 404 se não existir)
+        $unit = ProductUnitsModel::findOrFail($id);
+
+        // Soft delete
+        $unit->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Unidade marcada como excluída com sucesso!',
+            'data' => [
+                'id' => $unit->id,
+                'deleted_at' => $unit->deleted_at,
+            ],
+        ], 200);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'success' => false,
+            'errors' => ['general' => 'Unidade não encontrada.'],
+        ], 404);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'errors' => ['general' => $e->getMessage()],
+        ], 500);
     }
+}
+
 }
