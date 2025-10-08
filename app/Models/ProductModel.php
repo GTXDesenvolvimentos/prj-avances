@@ -85,4 +85,6 @@ class ProductModel extends Model
     {
         return self::find($id);
     }
+
+    protected $dates = ['deleted_at'];
 }
