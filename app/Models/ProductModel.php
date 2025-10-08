@@ -10,7 +10,7 @@ class ProductModel extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'products'; // nome da tabela
+    protected $table = 'products';
     protected $fillable = [
         'id',
         'category_id',
@@ -34,11 +34,18 @@ class ProductModel extends Model
         'is_dynamic_sale_price' => 'boolean',
         'is_dynamic_rental_price' => 'boolean',
     ];
-
-
-
-
-
-
     protected $dates = ['deleted_at'];
+
+    // Add these relationships
+    public function category()
+    {
+        return $this->belongsTo(ProductCategoryModel::class, 'category_id');
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(ProductUnitsModel::class, 'unit_id');
+    }
+
+
 }
