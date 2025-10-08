@@ -39,13 +39,14 @@ class ProductModel extends Model
     // Add these relationships
     public function category()
     {
-        return $this->belongsTo(ProductCategoryModel::class, 'category_id');
+        return $this->belongsTo(ProductCategoryModel::class, 'category_id')->withTrashed();
     }
 
     public function unit()
     {
-        return $this->belongsTo(ProductUnitsModel::class, 'unit_id');
+        return $this->belongsTo(ProductUnitsModel::class, 'unit_id')->withTrashed();
     }
+
 
 
 }
