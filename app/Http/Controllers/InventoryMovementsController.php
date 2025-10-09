@@ -114,6 +114,7 @@ class InventoryMovementsController extends Controller
                 ], 422);
             }
 
+            
             // Criação do movimento de inventário
             $movement = InventoryMovementsModel::create($validator->validated());
 
