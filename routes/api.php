@@ -37,6 +37,7 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::delete('units/{id}', [ProductUnitsController::class, 'destroy']);
 
     // Moviments routes
+    
     Route::get('inventorymovements', [InventoryMovementsController::class, 'index']);
     Route::get('inventorymovements/{id}', [InventoryMovementsController::class, 'show']);
     Route::post('inventorymovements', [InventoryMovementsController::class, 'store']);
