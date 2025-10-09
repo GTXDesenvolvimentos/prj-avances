@@ -16,59 +16,61 @@ class ProductController extends Controller
         $user = $request->user();
         $limit = (int) $request->query('limit', 25);
         $search = trim($request->query('search', ''), '"\'');
-    
-        // ✅ Query única com withTrashed e eager loading
-        $query = ProductModel::withTrashed()
-            ->with([
-                'category' => function ($q) {
-                    $q->withTrashed(); // inclui categorias soft deleted
-                },
-                'unit' => function ($q) {
-                    $q->withTrashed(); // inclui unidades soft deleted
-                }
-            ])
-            ->where('company_id', $user->company_id);
-    
+
+
+        $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
+
+        $query = ProductModel::with([
+            'category' => function ($q) {
+                $q->withTrashed();
+            },
+            'unit' => function ($q) {
+                $q->withTrashed();
+            }
+        ])->where('company_id', $user->company_id);
+
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_code', 'LIKE', "%{$search}%")
                     ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%");
+                    ->orWhere('description', 'LIKE', "%{$search}%")
+                    ->withTrashed();
             });
         }
-    
+
         if ($request->filled('unit_id')) {
             $query->where('unit_id', $request->query('unit_id'));
         }
-    
+
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->query('category_id'));
         }
-    
+
         if ($request->filled('availability')) {
             $availabilities = explode(',', $request->query('availability'));
-    
+
             $query->where(function ($q) use ($availabilities) {
                 foreach ($availabilities as $availability) {
                     $q->orWhereRaw('FIND_IN_SET(?, availability)', [$availability]);
                 }
             });
         }
-    
+
         if ($request->has('is_dynamic_sale_price')) {
             $query->where('is_dynamic_sale_price', (bool) $request->query('is_dynamic_sale_price'));
         }
-    
+
         if ($request->has('is_dynamic_rental_price')) {
             $query->where('is_dynamic_rental_price', (bool) $request->query('is_dynamic_rental_price'));
         }
-    
+
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));
         }
-    
+
         $products = $query->paginate($limit);
-    
+
         return response()->json([
             'success' => true,
             'data' => $products->items(),
@@ -76,6 +78,7 @@ class ProductController extends Controller
                 'page' => $products->currentPage(),
                 'limit' => $products->perPage(),
                 'page_count' => $products->lastPage(),
+
                 'total_count' => $products->total(),
             ],
         ], 200);
