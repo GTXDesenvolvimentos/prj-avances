@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\InventoryMovementsController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductCategoryController;
@@ -34,4 +35,11 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::post('units', [ProductUnitsController::class, 'store']);
     Route::put('units/{id}', [ProductUnitsController::class, 'update']);
     Route::delete('units/{id}', [ProductUnitsController::class, 'destroy']);
+
+    // Moviments routes
+    Route::get('inventorymovements', [InventoryMovementsController::class, 'index']);
+    Route::get('inventorymovements/{id}', [InventoryMovementsController::class, 'show']);
+    Route::post('inventorymovements', [InventoryMovementsController::class, 'store']);
+    Route::put('inventorymovements/{id}', [InventoryMovementsController::class, 'update']);
+    Route::delete('inventorymovements/{id}', [InventoryMovementsController::class, 'destroy']);
 });
