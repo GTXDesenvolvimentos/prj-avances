@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\InventoryMovementsController;
+use App\Http\Controllers\MovementTypeController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductCategoryController;
@@ -37,10 +38,18 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::delete('units/{id}', [ProductUnitsController::class, 'destroy']);
 
     // Moviments routes
-    
+
     Route::get('inventorymovements', [InventoryMovementsController::class, 'index']);
     Route::get('inventorymovements/{id}', [InventoryMovementsController::class, 'show']);
     Route::post('inventorymovements', [InventoryMovementsController::class, 'store']);
     Route::put('inventorymovements/{id}', [InventoryMovementsController::class, 'update']);
     Route::delete('inventorymovements/{id}', [InventoryMovementsController::class, 'destroy']);
+
+    // Movements type routes
+    Route::get('movimentstype', [MovementTypeController::class, 'index']);
+    Route::get('movimentstype/{id}', [MovementTypeController::class, 'show']);
+    Route::post('movimentstype', [MovementTypeController::class, 'store']);
+    Route::put('movimentstype/{id}', [MovementTypeController::class, 'update']);
+    Route::delete('movimentstype/{id}', [MovementTypeController::class, 'destroy']);
+
 });

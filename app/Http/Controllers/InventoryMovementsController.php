@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\InventoryMovementsModel;
+use App\Models\MovementTypeModel;
 use App\Models\ProductModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -70,26 +71,8 @@ class InventoryMovementsController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-
         $user = $request->user();
-        /*
-        $product = ProductModel::where('id', $request->product_id)
-            ->where('company_id', $user->company_id);
-            
 
-        if (!$product) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Produto não encontrado para esta empresa.'
-            ], 404);
-        }
-
-
-
-        if (!$product) {
-            return response()->json(['success' => false, 'errors' => ['general' => 'Produto não encontrado']], 404);
-        }
-*/
         try {
             DB::beginTransaction();
 
@@ -101,7 +84,6 @@ class InventoryMovementsController extends Controller
                 'rental_rental_id' => 'nullable|integer|exists:rentals,id',
                 'sale_sale_id' => 'nullable|integer|exists:sales,id',
                 'quantity_movement' => 'required|numeric|min:0.01',
-                'quantity_total' => 'required|numeric|min:0',
                 'notes' => 'nullable|string|max:500',
                 'company_id' => 'required|integer|exists:companies,id',
             ]);
@@ -114,14 +96,52 @@ class InventoryMovementsController extends Controller
                 ], 422);
             }
 
-            
-            // Criação do movimento de inventário
-            $movement = InventoryMovementsModel::create($validator->validated());
+            $validated = $validator->validated();
+
+            // 2️⃣ Buscar o tipo de movimento no banco
+            $movementType = MovementTypeModel::find($validated['movement_type']);
+            $lastMovement = InventoryMovementsModel::where('product_id', $validated['product_id'])
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+            if (!$movementType) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movement type not found.',
+                ], 404);
+            }
+
+            // CORREÇÃO: Verificar diretamente o tipo do movimento
+            if ($movementType->type == 'E') {
+                // 4️⃣ Obter valores do último lançamento
+                $lastQuantityTotal = $lastMovement->quantity_total ?? 0;
+                // 5️⃣ Calcular novos valores (ENTRADA: soma)
+                $newQuantityTotal = $lastQuantityTotal + $validated['quantity_movement'];
+                // 6️⃣ Atualizar os valores validados
+                $validated['quantity_total'] = $newQuantityTotal;
+            } elseif ($movementType->type == 'S') {
+                // 4️⃣ Obter valores do último lançamento
+                $lastQuantityTotal = $lastMovement->quantity_total ?? 0;
+                // 5️⃣ Calcular novos valores (SAÍDA: subtrai)
+                $newQuantityTotal = $lastQuantityTotal - $validated['quantity_movement'];
+                // 6️⃣ Atualizar os valores validados
+                $validated['quantity_total'] = $newQuantityTotal;
+            }
+
+            if ($validated['quantity_total'] < 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insuficient Saldo!',
+                ], 404);
+            }
+
+            // CORREÇÃO: Usar $validated em vez de $validator->validated()
+            $movement = InventoryMovementsModel::create($validated);
 
             DB::commit();
 
             // Carrega relações úteis para retorno
-            $movement->load(['product', 'warehouse', 'company']);
+            $movement->load(['product', 'warehouse', 'company', 'moviment_type']);
 
             return response()->json([
                 'success' => true,
