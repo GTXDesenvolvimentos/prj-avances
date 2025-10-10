@@ -48,27 +48,27 @@ class InventoryMovementsModel extends Model
         return $this->belongsTo(ProductModel::class, 'product_id');
     }
 
-    // // Armazém vinculado
-    // public function warehouse()
-    // {
-    //     return $this->belongsTo(Warehouse::class, 'warehouse_id');
-    // }
+    // Armazém vinculado
+    public function warehouse()
+    {
+        return $this->belongsTo(WarehouseModel::class, 'warehouse_id');
+    }
 
-    // // Empresa vinculada
-    // public function company()
-    // {
-    //     return $this->belongsTo(CompanyModel::class, 'company_id');
-    // }
+    // Empresa vinculada
+    public function company()
+    {
+        return $this->belongsTo(CompanyModel::class, 'company_id');
+    }
 
-    // // Aluguel (rental) vinculado — opcional
-    // public function rental()
-    // {
-    //     return $this->belongsTo(Rental::class, 'rental_rental_id');
-    // }
+    // Aluguel (rental) vinculado — opcional
+    public function rental()
+    {
+        return $this->belongsTo(Rental::class, 'rental_rental_id');
+    }
 
-    // Venda (sale) vinculada — opcional
-//     public function sale()
-//     {
-//         return $this->belongsTo(Sale::class, 'sale_sale_id');
-//     }
+    //Venda (sale) vinculada — opcional
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class, 'sale_sale_id');
+    }
  }
