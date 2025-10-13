@@ -12,24 +12,26 @@ class MovementTypeController extends Controller
     /**
      * List all movement types (index)
      */
-    public function index()
+    public function index(Request $request)
     {
-
         try {
-
             // Obtém o ID da empresa do usuário logado
             $companyId = auth()->user()->company_id;
 
-            // Busca apenas os MovementTypes pertencentes à empresa do usuário
-            $movementTypes = MovementTypeModel::with(relations: 'company')
-                ->where('company_id', $companyId)
-                ->get();
+            // Define quantos registros por página (pode vir do request ou usar padrão)
+            $perPage = $request->get('per_page', 10); // padrão: 10 por página
 
+            // Busca apenas os MovementTypes pertencentes à empresa do usuário com paginação
+            $movementTypes = MovementTypeModel::with('company')
+                ->where('company_id', $companyId)
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             return response()->json([
                 'success' => true,
                 'data' => $movementTypes
             ], 200);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -38,6 +40,7 @@ class MovementTypeController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Create a new movement type (store)

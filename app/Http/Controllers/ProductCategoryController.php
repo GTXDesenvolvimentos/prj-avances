@@ -26,6 +26,9 @@ class ProductCategoryController extends Controller
                 });
             }
 
+            // 🔹 Ordenar pelo mais recente primeiro
+            $query->orderBy('created_at', 'desc');
+
             $categories = $query->paginate($limit);
 
             return response()->json([

@@ -20,6 +20,7 @@ class WarehouseController extends Controller
             // Busca apenas os warehouses da empresa do usuário
             $warehouses = WarehouseModel::with('company')
                 ->where('company_id', $companyId)
+                ->orderBy('created_at', 'desc') // 🔹 Ordena do mais recente para o mais antigo
                 ->get();
 
             return response()->json([
