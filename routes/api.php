@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\InventoryMovementsController;
 use App\Http\Controllers\MovementTypeController;
+use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductCategoryController;
@@ -46,10 +47,17 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::delete('inventory/movements/{id}', [InventoryMovementsController::class, 'destroy']);
 
     // Movements type routes
-    Route::get('movimentsType', [MovementTypeController::class, 'index']);
-    Route::get('movimentsType/{id}', [MovementTypeController::class, 'show']);
-    Route::post('movimentsType', [MovementTypeController::class, 'store']);
-    Route::put('movimentsType/{id}', [MovementTypeController::class, 'update']);
-    Route::delete('movimentsType/{id}', [MovementTypeController::class, 'destroy']);
+    Route::get('movement-types', [MovementTypeController::class, 'index']);
+    Route::get('movement-types/{id}', [MovementTypeController::class, 'show']);
+    Route::post('movement-types', [MovementTypeController::class, 'store']);
+    Route::put('movement-types/{id}', [MovementTypeController::class, 'update']);
+    Route::delete('movement-types/{id}', [MovementTypeController::class, 'destroy']);
+
+    //Warehouse  routes
+    Route::get('warehouse', [WarehouseController::class, 'index']);
+    Route::get('warehouse/{id}', [WarehouseController::class, 'show']);
+    Route::post('warehouse', [WarehouseController::class, 'store']);
+    Route::put('warehouse/{id}', [WarehouseController::class, 'update']);
+    Route::delete('warehouse/{id}', [WarehouseController::class, 'destroy']);
 
 });
