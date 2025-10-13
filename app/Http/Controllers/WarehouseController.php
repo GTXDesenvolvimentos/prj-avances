@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Models\WarehouseModel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
