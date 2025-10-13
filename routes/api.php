@@ -37,19 +37,19 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::put('units/{id}', [ProductUnitsController::class, 'update']);
     Route::delete('units/{id}', [ProductUnitsController::class, 'destroy']);
 
-    // Moviments routes
+    // Movements routes
 
-    Route::get('inventorymovements', [InventoryMovementsController::class, 'index']);
-    Route::get('inventorymovements/{id}', [InventoryMovementsController::class, 'show']);
-    Route::post('inventorymovements', [InventoryMovementsController::class, 'store']);
-    Route::put('inventorymovements/{id}', [InventoryMovementsController::class, 'update']);
-    Route::delete('inventorymovements/{id}', [InventoryMovementsController::class, 'destroy']);
+    Route::get('inventory/movements', [InventoryMovementsController::class, 'index']);
+    Route::get('inventory/movements/{id}', [InventoryMovementsController::class, 'show']);
+    Route::post('inventory/movements', [InventoryMovementsController::class, 'store']);
+    Route::put('inventory/movements/{id}', [InventoryMovementsController::class, 'update']);
+    Route::delete('inventory/movements/{id}', [InventoryMovementsController::class, 'destroy']);
 
     // Movements type routes
-    Route::get('movimentstype', [MovementTypeController::class, 'index']);
-    Route::get('movimentstype/{id}', [MovementTypeController::class, 'show']);
-    Route::post('movimentstype', [MovementTypeController::class, 'store']);
-    Route::put('movimentstype/{id}', [MovementTypeController::class, 'update']);
-    Route::delete('movimentstype/{id}', [MovementTypeController::class, 'destroy']);
+    Route::get('movimentsType', [MovementTypeController::class, 'index']);
+    Route::get('movimentsType/{id}', [MovementTypeController::class, 'show']);
+    Route::post('movimentsType', [MovementTypeController::class, 'store']);
+    Route::put('movimentsType/{id}', [MovementTypeController::class, 'update']);
+    Route::delete('movimentsType/{id}', [MovementTypeController::class, 'destroy']);
 
 });

@@ -101,8 +101,9 @@ class InventoryMovementsController extends Controller
             // 2️⃣ Buscar o tipo de movimento no banco
             $movementType = MovementTypeModel::find($validated['movement_type']);
             $lastMovement = InventoryMovementsModel::where('product_id', $validated['product_id'])
-                    ->orderBy('id', 'desc')
-                    ->first();
+                ->where('warehouse_id', $validated['warehouse_id'])
+                ->orderBy('id', 'desc')
+                ->first();
 
             if (!$movementType) {
                 return response()->json([
