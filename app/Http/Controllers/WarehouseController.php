@@ -11,31 +11,63 @@ class WarehouseController extends Controller
     /**
      * List all warehouses (index)
      */
-    public function index()
+
+    public function index(Request $request)
     {
         try {
-            // Obtém o ID da empresa do usuário logado
+            // 🔹 Obtém o ID da empresa do usuário logado
             $companyId = auth()->user()->company_id;
 
-            // Busca apenas os warehouses da empresa do usuário
-            $warehouses = WarehouseModel::with('company')
+            // 🔹 Parâmetros de paginação e busca
+            $search = $request->input('search', '');
+            $limit = (int) $request->input('limit', 20);
+            $page = (int) $request->input('page', 1);
+
+            // 🔹 Monta a query base
+            $query = \App\Models\InventoryMovementsModel::with(['product', 'warehouse'])
                 ->where('company_id', $companyId)
-                ->orderBy('created_at', 'desc') // 🔹 Ordena do mais recente para o mais antigo
+                ->orderBy('created_at', 'desc');
+
+            // 🔹 Aplica busca (exemplo: por nome do produto ou tipo de movimento)
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('movement_type', 'LIKE', "%{$search}%")
+                        ->orWhereHas('product', function ($p) use ($search) {
+                            $p->where('name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhereHas('warehouse', function ($w) use ($search) {
+                            $w->where('name', 'LIKE', "%{$search}%");
+                        });
+                });
+            }
+
+            // 🔹 Paginação manual
+            $total = $query->count();
+            $movements = $query->skip(($page - 1) * $limit)
+                ->take($limit)
                 ->get();
 
+            // 🔹 Retorna resposta padronizada
             return response()->json([
                 'success' => true,
-                'data' => $warehouses
+                'data' => $movements,
+                'pagination' => [
+                    'total' => $total,
+                    'page' => $page,
+                    'limit' => $limit,
+                    'pages' => ceil($total / $limit),
+                ]
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error while listing warehouses.',
-                'error' => $e->getMessage()
+                'message' => 'Error while listing inventory movements.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
 
     /**
      * Create a new warehouse (store)
