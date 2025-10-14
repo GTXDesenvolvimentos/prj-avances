@@ -18,7 +18,7 @@ class MovementTypeModel extends Model
         'id',
         'name',
         'description',
-        'action',
+        'type',
         'company_id',
         'status',
     ];

@@ -20,47 +20,60 @@ class InventoryMovementsController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = InventoryMovementsModel::withTrashed()
-                ->with(['product', 'warehouse', 'company']);
+            $user = $request->user();
+            $companyId = $user->company_id;
 
-            // Filtros
-            if ($request->has('product_id')) {
-                $query->where('product_id', $request->product_id);
+            // 🔹 Parâmetros de paginação e busca
+            $search = $request->input('search', '');
+            $limit = (int) $request->input('limit', 20);
+            $page = (int) $request->input('page', 1);
+
+            // 🔹 Subconsulta para obter o ID do último movimento de cada produto
+            $sub = InventoryMovementsModel::select(DB::raw('MAX(id) as id'))
+                ->where('company_id', $companyId)
+                ->groupBy('product_id');
+
+            // 🔹 Consulta principal com filtros e paginação
+            $query = InventoryMovementsModel::whereIn('id', $sub)
+                ->where('company_id', $companyId)
+                ->with(['product', 'warehouse', 'moviment_type'])
+                ->orderBy('product_id', 'asc');
+
+            // 🔹 Filtro de busca (por nome do produto ou observação)
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('product', function ($p) use ($search) {
+                        $p->where('name', 'like', '%' . $search . '%');
+                    })
+                        ->orWhere('notes', 'like', '%' . $search . '%');
+                });
             }
 
-            if ($request->has('warehouse_id')) {
-                $query->where('warehouse_id', $request->warehouse_id);
-            }
-
-            if ($request->has('company_id')) {
-                $query->where('company_id', $request->company_id);
-            }
-
-            if ($request->has('movement_type')) {
-                $query->where('moviment_type', $request->movement_type);
-            }
-
-            if ($request->has('status')) {
-                $query->where('status', $request->status);
-            }
-
-            $movements = $query->orderBy('created_at', 'desc')
-                ->get();
+            // 🔹 Paginação
+            $movements = $query->paginate($limit, ['*'], 'page', $page);
 
             return response()->json([
                 'success' => true,
-                'data' => $movements,
-                'message' => 'Inventory movements retrieved successfully.'
+                'data' => $movements->items(),
+                'pagination' => [
+                    'total' => $movements->total(),
+                    'per_page' => $movements->perPage(),
+                    'current_page' => $movements->currentPage(),
+                    'last_page' => $movements->lastPage(),
+                ],
+                'message' => 'Últimos movimentos por produto recuperados com sucesso.'
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error retrieving inventory movements.',
-                'error' => $e->getMessage()
+                'message' => 'Erro ao recuperar os movimentos de inventário.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
+
 
     /**
      * Store a newly created resource in storage.
@@ -69,6 +82,7 @@ class InventoryMovementsController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
 
+    
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -113,14 +127,14 @@ class InventoryMovementsController extends Controller
             }
 
             // CORREÇÃO: Verificar diretamente o tipo do movimento
-            if ($movementType->type == 'E') {
+            if ($movementType->type == 'in') {
                 // 4️⃣ Obter valores do último lançamento
                 $lastQuantityTotal = $lastMovement->quantity_total ?? 0;
                 // 5️⃣ Calcular novos valores (ENTRADA: soma)
                 $newQuantityTotal = $lastQuantityTotal + $validated['quantity_movement'];
                 // 6️⃣ Atualizar os valores validados
                 $validated['quantity_total'] = $newQuantityTotal;
-            } elseif ($movementType->type == 'S') {
+            } elseif ($movementType->type == 'out') {
                 // 4️⃣ Obter valores do último lançamento
                 $lastQuantityTotal = $lastMovement->quantity_total ?? 0;
                 // 5️⃣ Calcular novos valores (SAÍDA: subtrai)
