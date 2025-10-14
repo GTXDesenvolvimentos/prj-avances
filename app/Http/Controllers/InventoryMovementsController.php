@@ -24,10 +24,10 @@ class InventoryMovementsController extends Controller
             $companyId = $user->company_id;
 
             // 🔹 Parâmetros de paginação e busca
-            $search = $request->input('search', '');
-            $limit = (int) $request->input('limit', 20);
-            $page = (int) $request->input('page', 1);
+            $limit = (int) $request->query('limit', 25);
+            $search = trim($request->query('search', ''), '"\'');
 
+           
             // 🔹 Subconsulta para obter o ID do último movimento de cada produto
             $sub = InventoryMovementsModel::select(DB::raw('MAX(id) as id'))
                 ->where('company_id', $companyId)
@@ -50,24 +50,25 @@ class InventoryMovementsController extends Controller
             }
 
             // 🔹 Paginação
-            $movements = $query->paginate($limit, ['*'], 'page', $page);
+            $movements = $query->paginate($limit);
 
             return response()->json([
                 'success' => true,
                 'data' => $movements->items(),
                 'pagination' => [
-                    'total' => $movements->total(),
-                    'per_page' => $movements->perPage(),
-                    'current_page' => $movements->currentPage(),
-                    'last_page' => $movements->lastPage(),
-                ],
-                'message' => 'Últimos movimentos por produto recuperados com sucesso.'
+                'page' => $movements->currentPage(),
+                'limit' => $movements->perPage(),
+                'page_count' => $movements->lastPage(),
+                'total_count' => $movements->total(),
+            ],
+                
+                'message' => 'The latest movements by product were successfully retrieved.'
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao recuperar os movimentos de inventário.',
+                'message' => 'Error retrieving inventory movements.',
                 'error' => $e->getMessage(),
             ], 500);
         }
