@@ -15,21 +15,24 @@ class WarehouseController extends Controller
     public function index(Request $request)
     {
         try {
-            // 🔹 Obtém o ID da empresa do usuário logado
-            $companyId = auth()->user()->company_id;
+            $user = $request->user();
+            $limit = (int) $request->query('limit', 25);
+            $search = trim($request->query('search', ''), '"\'');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
 
-            // 🔹 Parâmetros de paginação e busca
-            $search = $request->input('search', '');
-            $limit = (int) $request->input('limit', 20);
-            $page = (int) $request->input('page', 1);
+            // 🔹 Consulta base: movimentos da empresa do usuário
+            $query = \App\Models\InventoryMovementsModel::with([
+                'product' => function ($q) {
+                    $q->withTrashed();
+                },
+                'warehouse' => function ($q) {
+                    $q->withTrashed();
+                }
+            ])->where('company_id', $user->company_id);
 
-            // 🔹 Monta a query base
-            $query = \App\Models\InventoryMovementsModel::with(['product', 'warehouse'])
-                ->where('company_id', $companyId)
-                ->orderBy('created_at', 'desc');
-
-            // 🔹 Aplica busca (exemplo: por nome do produto ou tipo de movimento)
-            if (!empty($search)) {
+            // 🔹 Filtro de busca (por tipo, produto ou armazém)
+            if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('movement_type', 'LIKE', "%{$search}%")
                         ->orWhereHas('product', function ($p) use ($search) {
@@ -41,24 +44,33 @@ class WarehouseController extends Controller
                 });
             }
 
-            // 🔹 Paginação manual
-            $total = $query->count();
-            $movements = $query->skip(($page - 1) * $limit)
-                ->take($limit)
-                ->get();
+            // 🔹 Filtro por data de início
+            if (!empty($startDate)) {
+                $query->whereDate('created_at', '>=', $startDate);
+            }
 
-            // 🔹 Retorna resposta padronizada
+            // 🔹 Filtro por data final
+            if (!empty($endDate)) {
+                $query->whereDate('created_at', '<=', $endDate);
+            }
+
+            // 🔹 Ordenação (mais recentes primeiro)
+            $query->orderBy('created_at', 'desc');
+
+            // 🔹 Paginação automática do Laravel
+            $movements = $query->paginate($limit);
+
+            // 🔹 Retorno padronizado
             return response()->json([
                 'success' => true,
-                'data' => $movements,
+                'data' => $movements->items(),
                 'pagination' => [
-                    'total' => $total,
-                    'page' => $page,
-                    'limit' => $limit,
-                    'pages' => ceil($total / $limit),
-                ]
+                    'page' => $movements->currentPage(),
+                    'limit' => $movements->perPage(),
+                    'page_count' => $movements->lastPage(),
+                    'total_count' => $movements->total(),
+                ],
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -67,6 +79,7 @@ class WarehouseController extends Controller
             ], 500);
         }
     }
+
 
 
     /**

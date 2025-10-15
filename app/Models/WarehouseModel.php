@@ -30,6 +30,12 @@ class WarehouseModel extends Model
     {
         return $this->belongsTo(CompanyModel::class, 'company_id');
     }
+
+     // Re/torno  de tipos de movimentos;
+    public function movement_type()
+    {
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type');
+    }
 }
 
 

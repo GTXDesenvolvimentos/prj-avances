@@ -23,5 +23,11 @@ class ProductUnitsModel extends Model
         // 👇 Opcional (útil para clareza e compatibilidade com versões antigas do Laravel)
     protected $dates = ['deleted_at'];
 
+
+     public function company()
+    {
+        return $this->belongsTo(CompanyModel::class, 'company_id');
+    }
+
    
 }

@@ -14,17 +14,33 @@ class ProductUnitsController extends Controller
         try {
             $user = $request->user();
             $limit = (int) $request->query('limit', 25);
-            $search = trim($request->query('search'), '"\'');
+            $search = trim($request->query('search', ''), '"\'');
 
-            $query = ProductUnitsModel::where('company_id', $user->company_id);
+            // Consulta base (carrega também company se existir relação)
+            $query = ProductUnitsModel::with([
+                'company' => function ($q) {
+                    $q->withTrashed();
+                }
+            ])->where('company_id', $user->company_id);
 
+            // Filtro de busca (por símbolo ou descrição)
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('symbol', 'LIKE', "%{$search}%")
-                        ->orWhere('description', 'LIKE', "%{$search}%");
+                        ->orWhere('description', 'LIKE', "%{$search}%")
+                        ->withTrashed();
                 });
             }
 
+            // Filtro opcional por status
+            if ($request->filled('status')) {
+                $query->where('status', $request->query('status'));
+            }
+
+            // Ordenação (mais recentes primeiro)
+            $query->orderBy('created_at', 'desc');
+
+            // Paginação
             $units = $query->paginate($limit);
 
             return response()->json([
@@ -40,7 +56,8 @@ class ProductUnitsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => $e->getMessage()]
+                'message' => 'Error while listing product units.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -147,35 +164,35 @@ class ProductUnitsController extends Controller
 
 
     public function destroy($id)
-{
-    try {
-        // Busca a unidade (lança 404 se não existir)
-        $unit = ProductUnitsModel::findOrFail($id);
+    {
+        try {
+            // Busca a unidade (lança 404 se não existir)
+            $unit = ProductUnitsModel::findOrFail($id);
 
-        // Soft delete
-        $unit->delete();
+            // Soft delete
+            $unit->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Unidade marcada como excluída com sucesso!',
-            'data' => [
-                'id' => $unit->id,
-                'deleted_at' => $unit->deleted_at,
-            ],
-        ], 200);
+            return response()->json([
+                'success' => true,
+                'message' => 'Unidade marcada como excluída com sucesso!',
+                'data' => [
+                    'id' => $unit->id,
+                    'deleted_at' => $unit->deleted_at,
+                ],
+            ], 200);
 
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'success' => false,
-            'errors' => ['general' => 'Unidade não encontrada.'],
-        ], 404);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => 'Unidade não encontrada.'],
+            ], 404);
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'errors' => ['general' => $e->getMessage()],
-        ], 500);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'errors' => ['general' => $e->getMessage()],
+            ], 500);
+        }
     }
-}
 
 }

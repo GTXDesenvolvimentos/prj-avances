@@ -16,6 +16,8 @@ class ProductCategoryController extends Controller
             $user = auth()->user();
             $limit = (int) $request->query('limit', 15);
             $search = trim($request->query('search'), '"\'');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
 
             $query = ProductCategoryModel::where('company_id', $user->company_id);
 
@@ -28,6 +30,16 @@ class ProductCategoryController extends Controller
 
             // 🔹 Ordenar pelo mais recente primeiro
             $query->orderBy('created_at', 'desc');
+
+            // 🔹 Filtro por data de início
+            if (!empty($startDate)) {
+                $query->whereDate('created_at', '>=', $startDate);
+            }
+
+            // 🔹 Filtro por data final
+            if (!empty($endDate)) {
+                $query->whereDate('created_at', '<=', $endDate);
+            }
 
             $categories = $query->paginate($limit);
 

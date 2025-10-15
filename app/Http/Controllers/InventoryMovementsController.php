@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\InventoryMovementsModel;
 use App\Models\MovementTypeModel;
-use App\Models\ProductModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -26,43 +25,63 @@ class InventoryMovementsController extends Controller
             // 🔹 Parâmetros de paginação e busca
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
 
-           
-            // 🔹 Subconsulta para obter o ID do último movimento de cada produto
-            $sub = InventoryMovementsModel::select(DB::raw('MAX(id) as id'))
-                ->where('company_id', $companyId)
-                ->groupBy('product_id');
+            // 🔹 Consulta base: movimentos da empresa do usuário
+            $query = InventoryMovementsModel::with([
+                'product' => function ($q) {
+                    $q->withTrashed();
+                },
+                'warehouse' => function ($q) {
+                    $q->withTrashed();
+                },
+                'moviment_type' => function ($q) {
+                    $q->withTrashed();
+                }
+            ])->where('company_id', $companyId);
 
-            // 🔹 Consulta principal com filtros e paginação
-            $query = InventoryMovementsModel::whereIn('id', $sub)
-                ->where('company_id', $companyId)
-                ->with(['product', 'warehouse', 'moviment_type'])
-                ->orderBy('product_id', 'asc');
-
-            // 🔹 Filtro de busca (por nome do produto ou observação)
+            // 🔹 Filtro de busca (por tipo, produto ou armazém)
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->whereHas('product', function ($p) use ($search) {
-                        $p->where('name', 'like', '%' . $search . '%');
-                    })
-                        ->orWhere('notes', 'like', '%' . $search . '%');
+                    $q->where('movement_type', 'LIKE', "%{$search}%")
+                        ->orWhereHas('product', function ($p) use ($search) {
+                            $p->where('name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhereHas('warehouse', function ($w) use ($search) {
+                            $w->where('name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhere('notes', 'LIKE', "%{$search}%");
                 });
             }
+
+            // 🔹 Filtro por data inicial
+            if (!empty($startDate)) {
+                $query->whereDate('created_at', '>=', $startDate);
+            }
+
+            // 🔹 Filtro por data final
+            if (!empty($endDate)) {
+                $query->whereDate('created_at', '<=', $endDate);
+            }
+
+            // 🔹 Ordenação (mais recentes primeiro)
+            $query->orderBy('created_at', 'desc');
 
             // 🔹 Paginação
             $movements = $query->paginate($limit);
 
+            // 🔹 Retorno padronizado
             return response()->json([
                 'success' => true,
                 'data' => $movements->items(),
                 'pagination' => [
-                'page' => $movements->currentPage(),
-                'limit' => $movements->perPage(),
-                'page_count' => $movements->lastPage(),
-                'total_count' => $movements->total(),
-            ],
-                
-                'message' => 'The latest movements by product were successfully retrieved.'
+                    'page' => $movements->currentPage(),
+                    'limit' => $movements->perPage(),
+                    'page_count' => $movements->lastPage(),
+                    'total_count' => $movements->total(),
+                ],
+                'message' => 'Inventory movements were successfully retrieved.'
             ], 200);
 
         } catch (\Exception $e) {
@@ -76,6 +95,7 @@ class InventoryMovementsController extends Controller
 
 
 
+
     /**
      * Store a newly created resource in storage.
      *
@@ -83,7 +103,7 @@ class InventoryMovementsController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
 
-    
+
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
