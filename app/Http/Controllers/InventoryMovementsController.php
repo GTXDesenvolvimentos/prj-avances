@@ -36,7 +36,7 @@ class InventoryMovementsController extends Controller
                 'warehouse' => function ($q) {
                     $q->withTrashed();
                 },
-                'moviment_type' => function ($q) {
+                'movement_type' => function ($q) {
                     $q->withTrashed();
                 }
             ])->where('company_id', $companyId);
@@ -177,7 +177,7 @@ class InventoryMovementsController extends Controller
             DB::commit();
 
             // Carrega relações úteis para retorno
-            $movement->load(['product', 'warehouse', 'company', 'moviment_type']);
+            $movement->load(['product', 'warehouse', 'company', 'movement_type']);
 
             return response()->json([
                 'success' => true,
