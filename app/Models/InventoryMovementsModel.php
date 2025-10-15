@@ -47,7 +47,7 @@ class InventoryMovementsModel extends Model
     {
         return $this->belongsTo(ProductModel::class, 'product_id');
     }
-    // Re/torno  de tipos de movimentos;
+    // Retorno  de tipos de movimentos;
     public function movement_type()
     {
         return $this->belongsTo(MovementTypeModel::class, 'movement_type');
