@@ -51,20 +51,19 @@ class InventoryModel extends Model
     // Retorno  de tipos de movimentos;
     public function movement_type()
     {
-        return $this->belongsTo(MovementTypeModel::class, 'movement_type');
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type','id');
     }
 
     // Armazém vinculado
     public function warehouse()
     {
-        return $this->belongsTo(WarehouseModel::class, 'warehouse_id');
+        return $this->belongsTo(WarehouseModel::class, 'warehouse_id','id');
     }
 
     // Empresa vinculada
     public function company()
     {
-        return $this->belongsTo(CompanyModel::class, 'company_id');
+        return $this->belongsTo(CompanyModel::class, 'company_id','id');
     }
-
 
 }

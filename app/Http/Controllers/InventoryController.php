@@ -20,117 +20,125 @@ class InventoryController extends Controller
      */
 
 
-     public function index(Request $request)
-     {
-         try {
-             $user = $request->user();
-             $companyId = $user->company_id ?? null;
-     
-             if (!$companyId) {
-                 return response()->json([
-                     'error' => true,
-                     'message' => 'Empresa não identificada para o usuário autenticado.'
-                 ], 400);
-             }
-     
-             $limit = (int) $request->query('limit', 25);
-             $page = (int) $request->query('page', 1);
-             $search = trim($request->query('search', ''), "\"'");
-             $productId = $request->query('product_id');
-             $quantityBelow = $request->query('quantity_below'); // 👈 novo filtro
-     
-             // Query base agrupando por produto
-             $query = InventoryModel::with(['product', 'warehouse'])
-                 ->where('company_id', $companyId);
-     
-             if (!empty($productId)) {
-                 $query->where('product_id', $productId);
-             }
-     
-             if (!empty($search)) {
-                 $query->whereHas('product', function ($q) use ($search) {
-                     $q->where('name', 'LIKE', "%{$search}%")
-                       ->orWhere('description', 'LIKE', "%{$search}%");
-                 });
-             }
-     
-             // Paginação padrão Laravel
-             $paginator = $query->orderBy('product_id')
-                 ->paginate($limit, ['*'], 'page', $page);
-     
-             // Agrupa os registros por produto
-             $grouped = $paginator->getCollection()
-                 ->groupBy('product_id')
-                 ->map(function ($items) {
-                     $first = $items->first();
-     
-                     // Soma total do produto (todos os armazéns)
-                     $totalQuantity = $items->sum('quantity_movement');
-     
-                     // Quantidades por armazém
-                     $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
-                         $w = $warehouseItems->first()->warehouse;
-     
-                         if (!$w) {
-                             return [
-                                 'warehouse' => [
-                                     'id' => null,
-                                     'name' => 'Desconhecido',
-                                     'note' => null,
-                                 ],
-                                 'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
-                             ];
-                         }
-     
-                         return [
-                             'warehouse' => [
-                                 'id' => $w->id,
-                                 'name' => $w->name,
-                                 'note' => $w->note,
-                             ],
-                             'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
-                         ];
-                     })->values();
-     
-                     return [
-                         'id' => $first->id,
-                         'quantity' => number_format($totalQuantity, 2, '.', ''),
-                         'updated_at' => $first->updated_at,
-                         'created_at' => $first->created_at,
-                         'product' => $first->product,
-                         'quantity_per_warehouses' => $warehouses,
-                     ];
-                 })
-                 // 👇 aplica o filtro quantity_below DEPOIS de calcular as somas
-                 ->filter(function ($item) use ($quantityBelow) {
-                     if (!empty($quantityBelow)) {
-                         return (float)$item['quantity'] < (float)$quantityBelow;
-                     }
-                     return true;
-                 })
-                 ->values();
-     
-             // ✅ Retorno completo com paginação
-             $response = [
-                 'data' => $grouped,
-                 'pagination' => [
-                     'page' => $paginator->currentPage(),
-                     'limit' => $paginator->perPage(),
-                     'page_count' => $paginator->lastPage(),
-                     'total_count' => $paginator->total(),
-                 ],
-             ];
-     
-             return response()->json($response, 200);
-     
-         } catch (\Exception $e) {
-             return response()->json([
-                 'error' => true,
-                 'message' => 'Erro ao listar o estoque: ' . $e->getMessage(),
-             ], 500);
-         }
-     }
-     
+
+
+    public function index(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $companyId = $user->company_id ?? null;
+
+            if (!$companyId) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'Empresa não identificada para o usuário autenticado.'
+                ], 400);
+            }
+
+            $limit = (int) $request->query('limit', 25);
+            $page = (int) $request->query('page', 1);
+            $search = trim($request->query('search', ''), "\"'");
+            $productId = $request->query('product_id');
+            $quantityBelow = $request->query('quantity_below');
+
+            // ✅ Carrega produto + categoria + unidade
+            $query = InventoryModel::with([
+                'product.category',
+                'product.unit',
+                'warehouse',
+                'movement_type'
+            ])->where('company_id', $companyId);
+
+            if (!empty($productId)) {
+                $query->where('product_id', $productId);
+            }
+
+            if (!empty($search)) {
+                $query->whereHas('product', function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+
+            $paginator = $query->orderBy('product_id')
+                ->paginate($limit, ['*'], 'page', $page);
+
+            $grouped = $paginator->getCollection()
+                ->groupBy('product_id')
+                ->map(function ($items) {
+                    $first = $items->first();
+                    $totalQuantity = $items->sum('quantity_movement');
+
+                    // Quantidades por armazém
+                    $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
+                        $w = $warehouseItems->first()->warehouse;
+
+                        return [
+                            'warehouse' => [
+                                'id' => $w->id ?? null,
+                                'name' => $w->name ?? 'Desconhecido',
+                                'note' => $w->note ?? null,
+                            ],
+                            'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
+                        ];
+                    })->values();
+
+                    // ✅ Retorna dados completos do produto com categoria/unidade
+                    $product = $first->product;
+                    $productData = [
+                        'id' => $product->id ?? null,
+                        'name' => $product->name ?? null,
+                        'description' => $product->description ?? null,
+                        'category' => $product->category ? [
+                            'id' => $product->category->id,
+                            'name' => $product->category->name,
+                        ] : null,
+                        'unit' => $product->unit ? [
+                            'id' => $product->unit->id,
+                            'symbol' => $product->unit->symbol,
+                            'description' => $product->unit->description,
+                        ] : null,
+                    ];
+
+                    return [
+                        'id' => $first->id,
+                        'quantity' => number_format($totalQuantity, 2, '.', ''),
+                        'updated_at' => $first->updated_at,
+                        'created_at' => $first->created_at,
+                        'product' => $productData,
+                        'movement_type' => $first->movement_type,
+                        'quantity_per_warehouses' => $warehouses,
+                    ];
+                })
+                ->filter(function ($item) use ($quantityBelow) {
+                    if (!empty($quantityBelow)) {
+                        return (float) $item['quantity'] < (float) $quantityBelow;
+                    }
+                    return true;
+                })
+                ->values();
+
+            $response = [
+                'data' => $grouped,
+                'pagination' => [
+                    'page' => $paginator->currentPage(),
+                    'limit' => $paginator->perPage(),
+                    'page_count' => $paginator->lastPage(),
+                    'total_count' => $paginator->total(),
+                ],
+            ];
+
+            return response()->json($response, 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Erro ao listar o estoque: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
 
 
 
