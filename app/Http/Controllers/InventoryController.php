@@ -34,6 +34,7 @@ class InventoryController extends Controller
             $endDate = $request->query('end_date');
 
             
+            
             // Query base com as relações
             $query = InventoryModel::with(['product', 'movement_type', 'warehouse', 'company'])
                 ->where('company_id', $companyId); // Filtra pela empresa do usuário logado
