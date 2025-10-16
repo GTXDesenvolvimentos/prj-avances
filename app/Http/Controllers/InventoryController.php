@@ -65,7 +65,7 @@ class InventoryController extends Controller
                      $first = $items->first();
      
                      // Soma total do produto (todos os armazéns)
-                     $totalQuantity = $items->sum('quantity_total');
+                     $totalQuantity = $items->sum('quantity_movement');
      
                      // Quantidades por armazém
                      $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
