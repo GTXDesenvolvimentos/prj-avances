@@ -2,38 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InventoryMovementsModel;
+use App\Models\ProductModel;
+use App\Models\InventoryModel;
 use App\Models\MovementTypeModel;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
-class InventoryMovementsController extends Controller
+class InventoryController extends Controller
 {
     /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\JsonResponse
+     * @param  Request  $request
      */
-        public function index(Request $request)
+
+    public function index(Request $request)
     {
         try {
             // Usuário autenticado e empresa associada
             $user = $request->user();
             $companyId = $user->company_id;
 
-<<<<<<< HEAD
-            // Parâmetros de paginação e busca
-=======
             // Parâmetros de consulta
->>>>>>> f32e2c6059ea02f15265bfeb354f4eb21ff94730
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
             $product_id = $request->query('product_id');
             $startDate = $request->query('start_date');
             $endDate = $request->query('end_date');
 
+            
             
             // Query base com as relações
             $query = InventoryModel::with(['product', 'movement_type', 'warehouse', 'company'])
@@ -63,13 +63,8 @@ class InventoryMovementsController extends Controller
                 $query->whereDate('created_at', '<=', $endDate);
             }
 
-<<<<<<< HEAD
-            //Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at', 'desc');
-=======
             // Ordenação (mais recentes primeiro)
             $query->orderBy('created_at');
->>>>>>> f32e2c6059ea02f15265bfeb354f4eb21ff94730
 
             // Paginação
             $movements = $query->paginate($limit);
@@ -97,15 +92,82 @@ class InventoryMovementsController extends Controller
         }
     }
 
+        public function index(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $companyId = $user->company_id;
 
+            // 🔹 Parâmetros de paginação e busca
+            $limit = (int) $request->query('limit', 25);
+            $search = trim($request->query('search', ''), '"\'');
+            $startDate = $request->query('start_date');
+            $endDate = $request->query('end_date');
 
+            // 🔹 Consulta base: movimentos da empresa do usuário
+            $query = InventoryMovementsModel::with([
+                'product' => function ($q) {
+                    $q->withTrashed();
+                },
+                'warehouse' => function ($q) {
+                    $q->withTrashed();
+                },
+                'movement_type' => function ($q) {
+                    $q->withTrashed();
+                }
+            ])->where('company_id', $companyId);
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
+            // 🔹 Filtro de busca (por tipo, produto ou armazém)
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('movement_type', 'LIKE', "%{$search}%")
+                        ->orWhereHas('product', function ($p) use ($search) {
+                            $p->where('name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhereHas('warehouse', function ($w) use ($search) {
+                            $w->where('name', 'LIKE', "%{$search}%");
+                        })
+                        ->orWhere('notes', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // 🔹 Filtro por data inicial
+            if (!empty($startDate)) {
+                $query->whereDate('created_at', '>=', $startDate);
+            }
+
+            // 🔹 Filtro por data final
+            if (!empty($endDate)) {
+                $query->whereDate('created_at', '<=', $endDate);
+            }
+
+            // 🔹 Ordenação (mais recentes primeiro)
+            $query->orderBy('created_at', 'desc');
+
+            // 🔹 Paginação
+            $movements = $query->paginate($limit);
+
+            // 🔹 Retorno padronizado
+            return response()->json([
+                'success' => true,
+                'data' => $movements->items(),
+                'pagination' => [
+                    'page' => $movements->currentPage(),
+                    'limit' => $movements->perPage(),
+                    'page_count' => $movements->lastPage(),
+                    'total_count' => $movements->total(),
+                ],
+                'message' => 'Inventory movements were successfully retrieved.'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving inventory movements.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 
     public function store(Request $request): JsonResponse
@@ -139,7 +201,7 @@ class InventoryMovementsController extends Controller
 
             // 2️⃣ Buscar o tipo de movimento no banco
             $movementType = MovementTypeModel::find($validated['movement_type']);
-            $lastMovement = InventoryMovementsModel::where('product_id', $validated['product_id'])
+            $lastMovement = InventoryModel::where('product_id', $validated['product_id'])
                 ->where('warehouse_id', $validated['warehouse_id'])
                 ->orderBy('id', 'desc')
                 ->first();
@@ -176,7 +238,7 @@ class InventoryMovementsController extends Controller
             }
 
             // CORREÇÃO: Usar $validated em vez de $validator->validated()
-            $movement = InventoryMovementsModel::create($validated);
+            $movement = InventoryModel::create($validated);
 
             DB::commit();
 
@@ -200,36 +262,10 @@ class InventoryMovementsController extends Controller
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function show($id): JsonResponse
     {
         try {
-            $movement = InventoryMovementsModel::withTrashed()
+            $movement = InventoryModel::withTrashed()
                 ->with(['product', 'warehouse', 'company', 'rental', 'sale'])
                 ->find($id);
 
@@ -255,13 +291,6 @@ class InventoryMovementsController extends Controller
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function update(Request $request, $id): JsonResponse
     {
         try {
@@ -320,12 +349,6 @@ class InventoryMovementsController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function destroy($id): JsonResponse
     {
         try {
@@ -354,158 +377,6 @@ class InventoryMovementsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting inventory movement.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Restore the specified soft deleted resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function restore($id): JsonResponse
-    {
-        try {
-            $movement = InventoryMovementsModel::withTrashed()->find($id);
-
-            if (!$movement) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement not found.'
-                ], 404);
-            }
-
-            if (!$movement->trashed()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement is not deleted.'
-                ], 400);
-            }
-
-            $movement->restore();
-
-            return response()->json([
-                'success' => true,
-                'data' => $movement,
-                'message' => 'Inventory movement restored successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error restoring inventory movement.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get movements by product
-     *
-     * @param  int  $productId
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getByProduct($productId): JsonResponse
-    {
-        try {
-            $movements = InventoryMovementsModel::with(['warehouse', 'company'])
-                ->byProduct($productId)
-                ->active()
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $movements,
-                'message' => 'Product movements retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving product movements.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get movements by warehouse
-     *
-     * @param  int  $warehouseId
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getByWarehouse($warehouseId): JsonResponse
-    {
-        try {
-            $movements = InventoryMovementsModel::with(['product', 'company'])
-                ->byWarehouse($warehouseId)
-                ->active()
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $movements,
-                'message' => 'Warehouse movements retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving warehouse movements.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get current stock by product and warehouse
-     *
-     * @param  Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getStock(Request $request): JsonResponse
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'product_id' => 'required|integer|exists:products,id',
-                'warehouse_id' => 'required|integer|exists:warehouses,id'
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation error.',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $stock = InventoryMovementsModel::where('product_id', $request->product_id)
-                ->where('warehouse_id', $request->warehouse_id)
-                ->where('status', 'active')
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            $currentStock = $stock ? $stock->quantity_total : 0;
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'product_id' => $request->product_id,
-                    'warehouse_id' => $request->warehouse_id,
-                    'current_stock' => $currentStock,
-                    'last_movement' => $stock
-                ],
-                'message' => 'Stock retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving stock.',
                 'error' => $e->getMessage()
             ], 500);
         }
