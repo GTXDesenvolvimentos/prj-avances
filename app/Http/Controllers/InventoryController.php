@@ -78,7 +78,7 @@ class InventoryController extends Controller
                                      'name' => 'Desconhecido',
                                      'note' => null,
                                  ],
-                                 'quantity' => number_format($warehouseItems->sum('quantity_total'), 2, '.', ''),
+                                 'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
                              ];
                          }
      
@@ -88,7 +88,7 @@ class InventoryController extends Controller
                                  'name' => $w->name,
                                  'note' => $w->note,
                              ],
-                             'quantity' => number_format($warehouseItems->sum('quantity_total'), 2, '.', ''),
+                             'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
                          ];
                      })->values();
      
