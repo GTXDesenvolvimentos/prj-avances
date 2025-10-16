@@ -66,5 +66,6 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::post('warehouse', [WarehouseController::class, 'store']);
     Route::put('warehouse/{id}', [WarehouseController::class, 'update']);
     Route::delete('warehouse/{id}', [WarehouseController::class, 'destroy']);
+    
 
 });
