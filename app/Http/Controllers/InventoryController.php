@@ -85,10 +85,23 @@ class InventoryController extends Controller
 
                     // ✅ Retorna dados completos do produto com categoria/unidade
                     $product = $first->product;
+
+                    if (!$product) {
+                        return [
+                            'id' => $first->id,
+                            'quantity' => number_format($items->sum('quantity_movement'), 2, '.', ''),
+                            'updated_at' => $first->updated_at,
+                            'created_at' => $first->created_at,
+                            'product' => null,
+                            'movement_type' => $first->movement_type,
+                            'quantity_per_warehouses' => [],
+                        ];
+                    }
+
                     $productData = [
-                        'id' => $product->id ?? null,
-                        'name' => $product->name ?? null,
-                        'description' => $product->description ?? null,
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'description' => $product->description,
                         'category' => $product->category ? [
                             'id' => $product->category->id,
                             'name' => $product->category->name,
@@ -99,6 +112,7 @@ class InventoryController extends Controller
                             'description' => $product->unit->description,
                         ] : null,
                     ];
+
 
                     return [
                         'id' => $first->id,
