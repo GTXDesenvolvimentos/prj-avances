@@ -16,25 +16,21 @@ class InventoryMovementsController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-        public function index(Request $request)
+    public function index(Request $request)
     {
         try {
             // Usuário autenticado e empresa associada
             $user = $request->user();
             $companyId = $user->company_id;
 
-<<<<<<< HEAD
-            // Parâmetros de paginação e busca
-=======
             // Parâmetros de consulta
->>>>>>> f32e2c6059ea02f15265bfeb354f4eb21ff94730
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
             $product_id = $request->query('product_id');
             $startDate = $request->query('start_date');
             $endDate = $request->query('end_date');
 
-            
+
             // Query base com as relações
             $query = InventoryModel::with(['product', 'movement_type', 'warehouse', 'company'])
                 ->where('company_id', $companyId); // Filtra pela empresa do usuário logado
@@ -63,13 +59,8 @@ class InventoryMovementsController extends Controller
                 $query->whereDate('created_at', '<=', $endDate);
             }
 
-<<<<<<< HEAD
-            //Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at', 'desc');
-=======
             // Ordenação (mais recentes primeiro)
             $query->orderBy('created_at');
->>>>>>> f32e2c6059ea02f15265bfeb354f4eb21ff94730
 
             // Paginação
             $movements = $query->paginate($limit);

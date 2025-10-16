@@ -19,155 +19,121 @@ class InventoryController extends Controller
      * @param  Request  $request
      */
 
-    public function index(Request $request)
-    {
-        try {
-            // Usuário autenticado e empresa associada
-            $user = $request->user();
-            $companyId = $user->company_id;
 
-            // Parâmetros de consulta
-            $limit = (int) $request->query('limit', 25);
-            $search = trim($request->query('search', ''), '"\'');
-            $product_id = $request->query('product_id');
-            $startDate = $request->query('start_date');
-            $endDate = $request->query('end_date');
+     public function index(Request $request)
+     {
+         try {
+             $user = $request->user();
+             $companyId = $user->company_id ?? null;
+     
+             if (!$companyId) {
+                 return response()->json([
+                     'error' => true,
+                     'message' => 'Empresa não identificada para o usuário autenticado.'
+                 ], 400);
+             }
+     
+             $limit = (int) $request->query('limit', 25);
+             $page = (int) $request->query('page', 1);
+             $search = trim($request->query('search', ''), "\"'");
+             $productId = $request->query('product_id');
+             $quantityBelow = $request->query('quantity_below'); // 👈 novo filtro
+     
+             // Query base agrupando por produto
+             $query = InventoryModel::with(['product', 'warehouse'])
+                 ->where('company_id', $companyId);
+     
+             if (!empty($productId)) {
+                 $query->where('product_id', $productId);
+             }
+     
+             if (!empty($search)) {
+                 $query->whereHas('product', function ($q) use ($search) {
+                     $q->where('name', 'LIKE', "%{$search}%")
+                       ->orWhere('description', 'LIKE', "%{$search}%");
+                 });
+             }
+     
+             // Paginação padrão Laravel
+             $paginator = $query->orderBy('product_id')
+                 ->paginate($limit, ['*'], 'page', $page);
+     
+             // Agrupa os registros por produto
+             $grouped = $paginator->getCollection()
+                 ->groupBy('product_id')
+                 ->map(function ($items) {
+                     $first = $items->first();
+     
+                     // Soma total do produto (todos os armazéns)
+                     $totalQuantity = $items->sum('quantity_total');
+     
+                     // Quantidades por armazém
+                     $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
+                         $w = $warehouseItems->first()->warehouse;
+     
+                         if (!$w) {
+                             return [
+                                 'warehouse' => [
+                                     'id' => null,
+                                     'name' => 'Desconhecido',
+                                     'note' => null,
+                                 ],
+                                 'quantity' => number_format($warehouseItems->sum('quantity_total'), 2, '.', ''),
+                             ];
+                         }
+     
+                         return [
+                             'warehouse' => [
+                                 'id' => $w->id,
+                                 'name' => $w->name,
+                                 'note' => $w->note,
+                             ],
+                             'quantity' => number_format($warehouseItems->sum('quantity_total'), 2, '.', ''),
+                         ];
+                     })->values();
+     
+                     return [
+                         'id' => $first->id,
+                         'quantity' => number_format($totalQuantity, 2, '.', ''),
+                         'updated_at' => $first->updated_at,
+                         'created_at' => $first->created_at,
+                         'product' => $first->product,
+                         'quantity_per_warehouses' => $warehouses,
+                     ];
+                 })
+                 // 👇 aplica o filtro quantity_below DEPOIS de calcular as somas
+                 ->filter(function ($item) use ($quantityBelow) {
+                     if (!empty($quantityBelow)) {
+                         return (float)$item['quantity'] < (float)$quantityBelow;
+                     }
+                     return true;
+                 })
+                 ->values();
+     
+             // ✅ Retorno completo com paginação
+             $response = [
+                 'data' => $grouped,
+                 'pagination' => [
+                     'page' => $paginator->currentPage(),
+                     'limit' => $paginator->perPage(),
+                     'page_count' => $paginator->lastPage(),
+                     'total_count' => $paginator->total(),
+                 ],
+             ];
+     
+             return response()->json($response, 200);
+     
+         } catch (\Exception $e) {
+             return response()->json([
+                 'error' => true,
+                 'message' => 'Erro ao listar o estoque: ' . $e->getMessage(),
+             ], 500);
+         }
+     }
+     
 
-            
-            
-            // Query base com as relações
-            $query = InventoryModel::with(['product', 'movement_type', 'warehouse', 'company'])
-                ->where('company_id', $companyId); // Filtra pela empresa do usuário logado
 
-            // Filtro por busca (exemplo: nome do produto)
-            if (!empty($search)) {
-                $query->whereHas('product', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                });
-            }
 
-            // Filtro por id do produto
-            if (!empty($product_id)) {
-                $query->whereHas('product', function ($q) use ($product_id) {
-                    $q->where('id', '=', "$product_id");
-                });
-            }
-
-            // Filtro por data inicial
-            if (!empty($startDate)) {
-                $query->whereDate('created_at', '>=', $startDate);
-            }
-
-            // Filtro por data final
-            if (!empty($endDate)) {
-                $query->whereDate('created_at', '<=', $endDate);
-            }
-
-            // Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at');
-
-            // Paginação
-            $movements = $query->paginate($limit);
-
-            // Retorno padronizado
-            return response()->json([
-                'success' => true,
-                'data' => $movements->items(),
-                'pagination' => [
-                    'page' => $movements->currentPage(),
-                    'limit' => $movements->perPage(),
-                    'page_count' => $movements->lastPage(),
-                    'total_count' => $movements->total(),
-                ],
-                'message' => 'Inventory movements retrieved successfully.',
-            ], 200);
-
-        } catch (\Exception $e) {
-            // Tratamento de erro
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao buscar movimentos de inventário.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-        public function index(Request $request): JsonResponse
-    {
-        try {
-            $user = $request->user();
-            $companyId = $user->company_id;
-
-            // 🔹 Parâmetros de paginação e busca
-            $limit = (int) $request->query('limit', 25);
-            $search = trim($request->query('search', ''), '"\'');
-            $startDate = $request->query('start_date');
-            $endDate = $request->query('end_date');
-
-            // 🔹 Consulta base: movimentos da empresa do usuário
-            $query = InventoryMovementsModel::with([
-                'product' => function ($q) {
-                    $q->withTrashed();
-                },
-                'warehouse' => function ($q) {
-                    $q->withTrashed();
-                },
-                'movement_type' => function ($q) {
-                    $q->withTrashed();
-                }
-            ])->where('company_id', $companyId);
-
-            // 🔹 Filtro de busca (por tipo, produto ou armazém)
-            if (!empty($search)) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('movement_type', 'LIKE', "%{$search}%")
-                        ->orWhereHas('product', function ($p) use ($search) {
-                            $p->where('name', 'LIKE', "%{$search}%");
-                        })
-                        ->orWhereHas('warehouse', function ($w) use ($search) {
-                            $w->where('name', 'LIKE', "%{$search}%");
-                        })
-                        ->orWhere('notes', 'LIKE', "%{$search}%");
-                });
-            }
-
-            // 🔹 Filtro por data inicial
-            if (!empty($startDate)) {
-                $query->whereDate('created_at', '>=', $startDate);
-            }
-
-            // 🔹 Filtro por data final
-            if (!empty($endDate)) {
-                $query->whereDate('created_at', '<=', $endDate);
-            }
-
-            // 🔹 Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at', 'desc');
-
-            // 🔹 Paginação
-            $movements = $query->paginate($limit);
-
-            // 🔹 Retorno padronizado
-            return response()->json([
-                'success' => true,
-                'data' => $movements->items(),
-                'pagination' => [
-                    'page' => $movements->currentPage(),
-                    'limit' => $movements->perPage(),
-                    'page_count' => $movements->lastPage(),
-                    'total_count' => $movements->total(),
-                ],
-                'message' => 'Inventory movements were successfully retrieved.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving inventory movements.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
 
 
     public function store(Request $request): JsonResponse
@@ -296,7 +262,7 @@ class InventoryController extends Controller
         try {
             DB::beginTransaction();
 
-            $movement = InventoryMovementsModel::find($id);
+            $movement = InventoryModel::find($id);
 
             if (!$movement) {
                 return response()->json([
@@ -354,7 +320,7 @@ class InventoryController extends Controller
         try {
             DB::beginTransaction();
 
-            $movement = InventoryMovementsModel::find($id);
+            $movement = InventoryModel::find($id);
 
             if (!$movement) {
                 return response()->json([
