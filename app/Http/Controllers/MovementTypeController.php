@@ -42,6 +42,14 @@ class MovementTypeController extends Controller
                 $query->where('status', $request->query('status'));
             }
 
+            // Filtro por data final
+            if (!empty($endDate)) {
+                $query->whereDate('created_at', '<=', $endDate);
+            }
+
+            //Ordenação (mais recentes primeiro)
+            $query->orderBy('created_at', 'desc');
+
             // Ordenação (mais recentes primeiro)
             $query->orderBy('created_at', 'desc');
 

@@ -22,7 +22,7 @@ class InventoryMovementsController extends Controller
             $user = $request->user();
             $companyId = $user->company_id;
 
-            // 🔹 Parâmetros de paginação e busca
+            // Parâmetros de paginação e busca
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
             $startDate = $request->query('start_date');
@@ -60,12 +60,12 @@ class InventoryMovementsController extends Controller
                 $query->whereDate('created_at', '>=', $startDate);
             }
 
-            // 🔹 Filtro por data final
+            // Filtro por data final
             if (!empty($endDate)) {
                 $query->whereDate('created_at', '<=', $endDate);
             }
 
-            // 🔹 Ordenação (mais recentes primeiro)
+            //Ordenação (mais recentes primeiro)
             $query->orderBy('created_at', 'desc');
 
             // 🔹 Paginação
