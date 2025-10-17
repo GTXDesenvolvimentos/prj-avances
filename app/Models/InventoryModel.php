@@ -44,10 +44,11 @@ class InventoryModel extends Model
      */
 
     // Produto vinculado
+
     public function product()
-    {
-        return $this->belongsTo(ProductModel::class, 'product_id', 'id');
-    }
+{
+    return $this->belongsTo(ProductModel::class, 'product_id', 'id')->withTrashed();
+}
     // Retorno  de tipos de movimentos;
     public function movement_type()
     {
