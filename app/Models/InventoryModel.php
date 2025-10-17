@@ -46,25 +46,25 @@ class InventoryModel extends Model
     // Produto vinculado
 
     public function product()
-{
-    return $this->belongsTo(ProductModel::class, 'product_id', 'id')->withTrashed();
-}
+    {
+        return $this->belongsTo(ProductModel::class, 'product_id', 'id')->withTrashed();
+    }
     // Retorno  de tipos de movimentos;
     public function movement_type()
     {
-        return $this->belongsTo(MovementTypeModel::class, 'movement_type','id');
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id', 'id')->withTrashed();
     }
 
     // Armazém vinculado
     public function warehouse()
     {
-        return $this->belongsTo(WarehouseModel::class, 'warehouse_id','id');
+        return $this->belongsTo(WarehouseModel::class, 'warehouse_id', 'id')->withTrashed();
     }
 
     // Empresa vinculada
     public function company()
     {
-        return $this->belongsTo(CompanyModel::class, 'company_id','id');
+        return $this->belongsTo(CompanyModel::class, 'company_id', 'id')->withTrashed();
     }
 
 }
