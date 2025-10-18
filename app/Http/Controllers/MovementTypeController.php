@@ -20,7 +20,7 @@ class MovementTypeController extends Controller
             $user = $request->user();
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
-            $type = $request->query('type');
+            $type = $request->query('type'); // 🔹 in / out
 
             // 🔹 Consulta base: busca apenas tipos de movimento da empresa do usuário
             $query = MovementTypeModel::with([
@@ -29,23 +29,22 @@ class MovementTypeController extends Controller
                 }
             ])->where('company_id', $user->company_id);
 
-            // Filtro de busca (por nome, descrição, ou outro campo)
-            if ($search) {
+            // 🔹 Filtro de busca (por nome ou descrição)
+            if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('description', 'LIKE', "%{$search}%")
-                        ->withTrashed();
+                        ->orWhere('description', 'LIKE', "%{$search}%");
                 });
             }
 
-            // 🔹 Filtro por tipo (entrada/saída)
-            if (!empty($type)) {
-                if (in_array(strtolower($type), ['in', 'out'])) {
-                    $query->where('type', strtolower($type));
-                }
+            // 🔹 Filtro por tipo (entrada ou saída)
+            if (!empty($type) && in_array(strtolower($type), ['in', 'out'])) {
+                $query->where('type', strtolower($type));
             }
 
-            // Paginação
+
+
+            // 🔹 Paginação
             $movementTypes = $query->paginate($limit);
 
             return response()->json([
@@ -58,6 +57,7 @@ class MovementTypeController extends Controller
                     'total_count' => $movementTypes->total(),
                 ],
             ], 200);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -66,6 +66,7 @@ class MovementTypeController extends Controller
             ], 500);
         }
     }
+
 
     /**
      * Create a new movement type (store)
