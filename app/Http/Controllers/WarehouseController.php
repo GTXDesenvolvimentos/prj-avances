@@ -12,73 +12,48 @@ class WarehouseController extends Controller
      * List all warehouses (index)
      */
 
+
     public function index(Request $request)
     {
-        try {
-            $user = $request->user();
-            $limit = (int) $request->query('limit', 25);
-            $search = trim($request->query('search', ''), '"\'');
-            $startDate = $request->query('start_date');
-            $endDate = $request->query('end_date');
+        $query = WarehouseModel::query();
+        $limit = (int) $request->query('limit', 25);
 
-            // 🔹 Consulta base: movimentos da empresa do usuário
-            $query = \App\Models\InventoryMovementsModel::with([
-                'product' => function ($q) {
-                    $q->withTrashed();
-                },
-                'warehouse' => function ($q) {
-                    $q->withTrashed();
-                }
-            ])->where('company_id', $user->company_id);
+        // 🔍 Filtros dinâmicos
+        $search = trim($request->query('search', ''), '"\'');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('note', 'LIKE', "%{$search}%");
+            });
+        }       
+       
 
-            // 🔹 Filtro de busca (por tipo, produto ou armazém)
-            if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('movement_type', 'LIKE', "%{$search}%")
-                        ->orWhereHas('product', function ($p) use ($search) {
-                            $p->where('name', 'LIKE', "%{$search}%");
-                        })
-                        ->orWhereHas('warehouse', function ($w) use ($search) {
-                            $w->where('name', 'LIKE', "%{$search}%");
-                        });
-                });
-            }
+        // 📊 Ordenação (padrão: id desc)
+        $query->when($request->sort_by, function ($q, $sortBy) use ($request) {
+            $direction = $request->get('sort_dir', 'asc');
+            $q->orderBy($sortBy, $direction);
+        }, function ($q) {
+            $q->orderByDesc('id');
+        });
 
-            // 🔹 Filtro por data de início
-            if (!empty($startDate)) {
-                $query->whereDate('created_at', '>=', $startDate);
-            }
 
-            // 🔹 Filtro por data final
-            if (!empty($endDate)) {
-                $query->whereDate('created_at', '<=', $endDate);
-            }
+        $warehouses = $query->paginate($limit);
 
-            // 🔹 Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at', 'desc');
+        return response()->json([
+            'success' => true,
+            'data' => $warehouses->items(),
+            'pagination' => [
+                'page' => $warehouses->currentPage(),
+                'limit' => $warehouses->perPage(),
+                'page_count' => $warehouses->lastPage(),
 
-            // 🔹 Paginação automática do Laravel
-            $movements = $query->paginate($limit);
+                'total_count' => $warehouses->total(),
+            ],
+        ], 200);
 
-            // 🔹 Retorno padronizado
-            return response()->json([
-                'success' => true,
-                'data' => $movements->items(),
-                'pagination' => [
-                    'page' => $movements->currentPage(),
-                    'limit' => $movements->perPage(),
-                    'page_count' => $movements->lastPage(),
-                    'total_count' => $movements->total(),
-                ],
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error while listing inventory movements.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
     }
+
+
 
 
 
