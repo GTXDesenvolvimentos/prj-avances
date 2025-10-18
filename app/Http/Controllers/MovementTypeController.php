@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\MovementTypeModel;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class MovementTypeController extends Controller
 {
@@ -18,8 +20,7 @@ class MovementTypeController extends Controller
             $user = $request->user();
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
-            $startDate = $request->query('start_date');
-            $endDate = $request->query('end_date');
+            $type = $request->query('type');
 
             // 🔹 Consulta base: busca apenas tipos de movimento da empresa do usuário
             $query = MovementTypeModel::with([
@@ -37,21 +38,12 @@ class MovementTypeController extends Controller
                 });
             }
 
-            // Filtro por status (opcional)
-            if ($request->filled('status')) {
-                $query->where('status', $request->query('status'));
+            // 🔹 Filtro por tipo (entrada/saída)
+            if (!empty($type)) {
+                if (in_array(strtolower($type), ['in', 'out'])) {
+                    $query->where('type', strtolower($type));
+                }
             }
-
-            // Filtro por data final
-            if (!empty($endDate)) {
-                $query->whereDate('created_at', '<=', $endDate);
-            }
-
-            //Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at', 'desc');
-
-            // Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at', 'desc');
 
             // Paginação
             $movementTypes = $query->paginate($limit);
@@ -78,38 +70,74 @@ class MovementTypeController extends Controller
     /**
      * Create a new movement type (store)
      */
-    public function store(Request $request)
+
+    public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-        $request->merge(['company_id' => $user->company_id]);
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'type' => 'required|string|max:50',
-        ]);
 
-        if ($validator->fails()) {
+        // 1️⃣ Verifica se o usuário está vinculado a uma empresa
+        if (!$user->company_id) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'Usuário não está vinculado a nenhuma empresa.',
+            ], 403);
         }
 
         try {
-            $movementType = MovementTypeModel::create($request->all());
+            DB::beginTransaction();
+
+            // 2️⃣ Injeta company_id do usuário autenticado
+            $request->merge(['company_id' => $user->company_id]);
+
+            // 3️⃣ Validação dos dados
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|min:1|max:255',
+                'description' => 'nullable|string|min:3|max:500',
+                'type' => 'required|string|max:50',
+                'company_id' => 'required|integer|exists:companies,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $validated = $validator->validated();
+
+            // 4️⃣ Criação do tipo de movimento
+            $movementType = MovementTypeModel::create($validated);
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Movement type successfully created!',
-                'data' => $movementType
+                'message' => 'Movement type successfully created.',
+                'data' => $movementType,
             ], 201);
-        } catch (\Exception $e) {
+
+        } catch (QueryException $e) {
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error while creating movement type.',
-                'error' => $e->getMessage()
+                'message' => 'Database error.',
+                'error' => $e->getMessage(),
+            ], 400);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating movement type.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
 
     /**
      * Show a specific movement type (show)

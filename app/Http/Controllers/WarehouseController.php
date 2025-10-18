@@ -12,9 +12,11 @@ class WarehouseController extends Controller
      * List all warehouses (index)
      */
 
+    
 
     public function index(Request $request)
     {
+        $user = $request->user();
         $query = WarehouseModel::query();
         $limit = (int) $request->query('limit', 25);
 

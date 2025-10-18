@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MovementTypeModel;
 use GuzzleHttp\Psr7\Query;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -13,76 +14,65 @@ class ProductController extends Controller
 
     public function index(Request $request)
     {
-        $user = $request->user();
-        $limit = (int) $request->query('limit', 25);
-        $search = trim($request->query('search', ''), '"\'');
+        try {
+            $user = $request->user();
+            $limit = (int) $request->query('limit', 25);
+            $search = trim($request->query('search', ''), '"\'');
+            $type = $request->query('type'); // 🔹 in / out
 
-
-        $query = ProductModel::with(['category', 'unit'])->where('company_id', $user->company_id);
-
-        $query = ProductModel::with([
-            'category' => function ($q) {
-                $q->withTrashed();
-            },
-            'unit' => function ($q) {
-                $q->withTrashed();
-            }
-        ])->where('company_id', $user->company_id);
-
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('product_code', 'LIKE', "%{$search}%")
-                    ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%")
-                    ->withTrashed();
-            });
-        }
-
-        if ($request->filled('unit_id')) {
-            $query->where('unit_id', $request->query('unit_id'));
-        }
-
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->query('category_id'));
-        }
-
-        if ($request->filled('availability')) {
-            $availabilities = explode(',', $request->query('availability'));
-
-            $query->where(function ($q) use ($availabilities) {
-                foreach ($availabilities as $availability) {
-                    $q->orWhereRaw('FIND_IN_SET(?, availability)', [$availability]);
+            // 🔹 Consulta base: busca apenas tipos de movimento da empresa do usuário
+            $query = MovementTypeModel::with([
+                'company' => function ($q) {
+                    $q->withTrashed();
                 }
-            });
+            ])->where('company_id', $user->company_id);
+
+            // 🔹 Filtro de busca (por nome ou descrição)
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // 🔹 Filtro por tipo (entrada ou saída)
+            if (!empty($type) && in_array(strtolower($type), ['in', 'out'])) {
+                $query->where('type', strtolower($type));
+            }
+
+            // 🔹 Filtro por status (opcional)
+            if ($request->filled('status')) {
+                $query->where('status', $request->query('status'));
+            }
+
+         
+            // 🔹 Ordenação (mais recentes primeiro)
+            $query->orderByDesc('created_at');
+
+            // 🔹 Paginação
+            $movementTypes = $query->paginate($limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => $movementTypes->items(),
+                'pagination' => [
+                    'page' => $movementTypes->currentPage(),
+                    'limit' => $movementTypes->perPage(),
+                    'page_count' => $movementTypes->lastPage(),
+                    'total_count' => $movementTypes->total(),
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error while listing movement types.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        if ($request->has('is_dynamic_sale_price')) {
-            $query->where('is_dynamic_sale_price', (bool) $request->query('is_dynamic_sale_price'));
-        }
-
-        if ($request->has('is_dynamic_rental_price')) {
-            $query->where('is_dynamic_rental_price', (bool) $request->query('is_dynamic_rental_price'));
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->query('status'));
-        }
-
-        $products = $query->paginate($limit);
-
-        return response()->json([
-            'success' => true,
-            'data' => $products->items(),
-            'pagination' => [
-                'page' => $products->currentPage(),
-                'limit' => $products->perPage(),
-                'page_count' => $products->lastPage(),
-
-                'total_count' => $products->total(),
-            ],
-        ], 200);
     }
+
+
 
     /**
      * Display the specified resource.

@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\ProductCategoryModel;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\DB;
 
 class ProductCategoryController extends Controller
 {
@@ -16,8 +17,7 @@ class ProductCategoryController extends Controller
             $user = auth()->user();
             $limit = (int) $request->query('limit', 15);
             $search = trim($request->query('search'), '"\'');
-            $startDate = $request->query('start_date');
-            $endDate = $request->query('end_date');
+
 
             $query = ProductCategoryModel::where('company_id', $user->company_id);
 
@@ -31,15 +31,7 @@ class ProductCategoryController extends Controller
             // 🔹 Ordenar pelo mais recente primeiro
             $query->orderBy('created_at', 'desc');
 
-            // 🔹 Filtro por data de início
-            if (!empty($startDate)) {
-                $query->whereDate('created_at', '>=', $startDate);
-            }
-
-            // 🔹 Filtro por data final
-            if (!empty($endDate)) {
-                $query->whereDate('created_at', '<=', $endDate);
-            }
+           
 
             $categories = $query->paginate($limit);
 
@@ -70,52 +62,69 @@ class ProductCategoryController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $data = $request->json()->all();
+        $user = $request->user();
 
-        $validator = Validator::make($data, [
-            'name' => 'required|string|min:1',
-            'description' => 'required|string|min:4',
-        ]);
-
-        if ($validator->fails()) {
+        // 1️⃣ Verifica se o usuário está vinculado a uma empresa
+        if (!$user->company_id) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+                'message' => 'Usuário não está vinculado a nenhuma empresa.',
+            ], 403);
         }
 
         try {
-            $companyId = auth()->user()->company_id;
+            DB::beginTransaction();
 
-            $category = ProductCategoryModel::create([
-                'name' => $data['name'],
-                'description' => $data['description'],
-                'company_id' => $companyId,
+            // 2️⃣ Injeta company_id do usuário autenticado
+            $request->merge(['company_id' => $user->company_id]);
 
+            // 3️⃣ Validação dos dados
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|min:1|max:255',
+                'description' => 'required|string|min:4|max:500',
+                'company_id' => 'required|integer|exists:companies,id',
             ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $validated = $validator->validated();
+
+            // 4️⃣ Criação da categoria
+            $category = ProductCategoryModel::create($validated);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
+                'message' => 'Product category created successfully.',
                 'data' => $category,
             ], 201);
+
         } catch (QueryException $e) {
-            // Captura erros do banco (por exemplo, violação de unique, not null)
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage(),
-                ],
-            ], status: 400);
+                'message' => 'Database error.',
+                'error' => $e->getMessage(),
+            ], 400);
+
         } catch (\Exception $e) {
-            // Outros erros inesperados
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage(),
-                ],
-            ], status: 500);
+                'message' => 'Error creating product category.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 

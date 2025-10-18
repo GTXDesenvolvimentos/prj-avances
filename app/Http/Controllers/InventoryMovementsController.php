@@ -103,8 +103,19 @@ class InventoryMovementsController extends Controller
     {
         $user = $request->user();
 
+        if (!$user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuário não está vinculado a nenhuma empresa.',
+            ], 403);
+        }
+
+
         try {
             DB::beginTransaction();
+
+            // ✅ Injeta company_id do usuário autenticado antes da validação
+            $request->merge(['company_id' => $user->company_id]);
 
             // Validação dos dados
             $validator = Validator::make($request->all(), [
@@ -190,25 +201,6 @@ class InventoryMovementsController extends Controller
             ], 500);
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     /**
