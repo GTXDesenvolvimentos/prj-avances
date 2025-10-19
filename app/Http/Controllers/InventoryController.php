@@ -21,57 +21,62 @@ class InventoryController extends Controller
 
 
 
-    public function index(Request $request)
-    {
-        try {
-            $user = $request->user();
-            $companyId = $user->company_id ?? null;
+public function index(Request $request)
+{
+    try {
+        $user = $request->user();
+        $companyId = $user->company_id ?? null;
 
-            if (!$companyId) {
-                return response()->json([
-                    'error' => true,
-                    'message' => 'Empresa não identificada para o usuário autenticado.'
-                ], 400);
-            }
+        if (!$companyId) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Empresa não identificada para o usuário autenticado.'
+            ], 400);
+        }
 
-            $limit = (int) $request->query('limit', 25);
-            $page = (int) $request->query('page', 1);
-            $search = trim($request->query('search', ''), "\"'");
-            $productId = $request->query('product_id');
-            $quantityBelow = $request->query('quantity_below');
+        $limit = (int) $request->query('limit', 25);
+        $page = (int) $request->query('page', 1);
+        $search = trim($request->query('search', ''), "\"'");
+        $productId = $request->query('product_id');
+        $quantityBelow = $request->query('quantity_below');
 
-            // 🔹 Busca todos os movimentos da empresa
-            $query = InventoryModel::with([
-                'product.category',
-                'product.unit',
-                'warehouse',
-                'movement_type'
-            ])->where('company_id', $companyId);
+        // 🔹 Busca todos os movimentos
+        $query = InventoryModel::with([
+            'product.category',
+            'product.unit',
+            'warehouse',
+            'movement_type'
+        ])->where('company_id', $companyId);
 
-            if (!empty($productId)) {
-                $query->where('product_id', $productId);
-            }
+        if (!empty($productId)) {
+            $query->where('product_id', $productId);
+        }
 
-            if (!empty($search)) {
-                $query->whereHas('product', function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('description', 'LIKE', "%{$search}%");
-                });
-            }
+        if (!empty($search)) {
+            $query->whereHas('product', function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('description', 'LIKE', "%{$search}%")
+                    ->orWhere('product_code', 'LIKE', "%{$search}%");
+            });
+        }
 
-            // 🔸 Aqui usamos get() (sem paginate) para agrupar corretamente
-            $allMovements = $query->orderBy('product_id')->get();
+        // 🔸 Ordena por data de criação
+        $allMovements = $query->orderBy('created_at', 'desc')->get();
 
-            // 🔹 Agrupa por produto
-            $grouped = $allMovements
-                ->groupBy('product_id')
-                ->map(function ($items) {
+        // 🔹 Agrupa primeiro por data (Y-m-d)
+        $grouped = $allMovements
+            ->groupBy(function ($item) {
+                return \Carbon\Carbon::parse($item->created_at)->format('Y-m-d');
+            })
+            ->flatMap(function ($dateGroup) {
+                // dentro da data, agrupa por produto_id (mantendo mesmo formato original)
+                return $dateGroup->groupBy('product_id')->map(function ($items) {
                     $first = $items->first();
+                    $product = $first->product;
                     $totalQuantity = $items->sum('quantity_movement');
 
                     $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
                         $w = $warehouseItems->first()->warehouse;
-
                         return [
                             'warehouse' => [
                                 'id' => $w->id ?? null,
@@ -82,8 +87,6 @@ class InventoryController extends Controller
                         ];
                     })->values();
 
-                    $product = $first->product;
-
                     return [
                         'id' => $first->id,
                         'quantity' => number_format($totalQuantity, 2, '.', ''),
@@ -91,7 +94,7 @@ class InventoryController extends Controller
                         'created_at' => $first->created_at,
                         'product' => $product ? [
                             'id' => $product->id,
-                            'product_code' => $product->product_code, // ✅ ADICIONADO AQUI
+                            'product_code' => $product->product_code,
                             'name' => $product->name,
                             'description' => $product->description,
                             'category' => $product->category ? [
@@ -107,37 +110,41 @@ class InventoryController extends Controller
                         'movement_type' => $first->movement_type,
                         'quantity_per_warehouses' => $warehouses,
                     ];
-                })
-                ->filter(function ($item) use ($quantityBelow) {
-                    if (!empty($quantityBelow)) {
-                        return (float) $item['quantity'] < (float) $quantityBelow;
-                    }
-                    return true;
-                })
-                ->values();
+                });
+            })
+            ->sortByDesc('created_at')
+            ->values();
 
-            // 🔸 Paginação manual após agrupar
-            $total = $grouped->count();
-            $offset = ($page - 1) * $limit;
-            $paged = $grouped->slice($offset, $limit)->values();
-
-            return response()->json([
-                'data' => $paged,
-                'pagination' => [
-                    'page' => $page,
-                    'limit' => $limit,
-                    'page_count' => ceil($total / $limit),
-                    'total_count' => $total,
-                ],
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => true,
-                'message' => 'Erro ao listar o estoque: ' . $e->getMessage(),
-            ], 500);
+        // 🔸 Filtro opcional (quantidade abaixo)
+        if (!empty($quantityBelow)) {
+            $grouped = $grouped->filter(function ($item) use ($quantityBelow) {
+                return (float) $item['quantity'] < (float) $quantityBelow;
+            })->values();
         }
+
+        // 🔸 Paginação manual
+        $total = $grouped->count();
+        $offset = ($page - 1) * $limit;
+        $paged = $grouped->slice($offset, $limit)->values();
+
+        return response()->json([
+            'data' => $paged,
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'page_count' => ceil($total / $limit),
+                'total_count' => $total,
+            ],
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => true,
+            'message' => 'Erro ao listar o estoque: ' . $e->getMessage(),
+        ], 500);
     }
+}
+
 
 
 
