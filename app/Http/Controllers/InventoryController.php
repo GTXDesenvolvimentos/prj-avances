@@ -62,74 +62,62 @@ class InventoryController extends Controller
             // 🔸 Pega todos os movimentos ordenados por data
             $allMovements = $query->orderBy('created_at', 'desc')->get();
 
-            // 🔹 Agrupa primeiro por data (Y-m-d)
+            // 🔹 Agrupa por produto + data (Y-m-d)
             $grouped = $allMovements
                 ->groupBy(function ($item) {
-                    return \Carbon\Carbon::parse($item->created_at)->format('Y-m-d');
+                    return $item->product_id . '_' . \Carbon\Carbon::parse($item->created_at)->format('Y-m-d');
                 })
-                ->map(function ($items, $date) {
-                    // Dentro de cada data, agrupa por produto
-                    $products = $items->groupBy('product_id')->map(function ($productItems) {
-                        $first = $productItems->first();
-                        $product = $first->product;
-                        $totalQuantity = $productItems->sum('quantity_movement');
+                ->map(function ($items) {
+                    $first = $items->first();
+                    $product = $first->product;
+                    $totalQuantity = $items->sum('quantity_movement');
 
-                        $warehouses = $productItems->groupBy('warehouse_id')->map(function ($warehouseItems) {
-                            $w = $warehouseItems->first()->warehouse;
-                            return [
-                                'warehouse' => [
-                                    'id' => $w->id ?? null,
-                                    'name' => $w->name ?? 'Desconhecido',
-                                    'note' => $w->note ?? null,
-                                ],
-                                'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
-                            ];
-                        })->values();
-
+                    $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
+                        $w = $warehouseItems->first()->warehouse;
                         return [
-                            'product' => $product ? [
-                                'id' => $product->id,
-                                'name' => $product->name,
-                                'description' => $product->description,
-                                'category' => $product->category ? [
-                                    'id' => $product->category->id,
-                                    'name' => $product->category->name,
-                                ] : null,
-                                'unit' => $product->unit ? [
-                                    'id' => $product->unit->id,
-                                    'symbol' => $product->unit->symbol,
-                                    'description' => $product->unit->description,
-                                ] : null,
-                            ] : null,
-                            'quantity' => number_format($totalQuantity, 2, '.', ''),
-                            'movement_type' => $first->movement_type,
-                            'quantity_per_warehouses' => $warehouses,
+                            'warehouse' => [
+                                'id' => $w->id ?? null,
+                                'name' => $w->name ?? 'Desconhecido',
+                                'note' => $w->note ?? null,
+                            ],
+                            'quantity' => number_format($warehouseItems->sum('quantity_movement'), 2, '.', ''),
                         ];
                     })->values();
 
                     return [
-                        'date' => $date,
-                        'products' => $products,
+                        'id' => $first->id,
+                        'date' => \Carbon\Carbon::parse($first->created_at)->format('Y-m-d'),
+                        'quantity' => number_format($totalQuantity, 2, '.', ''),
+                        'updated_at' => $first->updated_at,
+                        'created_at' => $first->created_at,
+                        'product' => $product ? [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'description' => $product->description,
+                            'category' => $product->category ? [
+                                'id' => $product->category->id,
+                                'name' => $product->category->name,
+                            ] : null,
+                            'unit' => $product->unit ? [
+                                'id' => $product->unit->id,
+                                'symbol' => $product->unit->symbol,
+                                'description' => $product->unit->description,
+                            ] : null,
+                        ] : null,
+                        'movement_type' => $first->movement_type,
+                        'quantity_per_warehouses' => $warehouses,
                     ];
                 })
-                ->sortKeysDesc() // 🔹 mais recentes primeiro
+                ->filter(function ($item) use ($quantityBelow) {
+                    if (!empty($quantityBelow)) {
+                        return (float) $item['quantity'] < (float) $quantityBelow;
+                    }
+                    return true;
+                })
+                ->sortByDesc('date') // 🔹 ordena pelos dias mais recentes
                 ->values();
 
-            // 🔸 Filtro opcional por quantidade mínima
-            if (!empty($quantityBelow)) {
-                $grouped = $grouped->map(function ($group) use ($quantityBelow) {
-                    $filteredProducts = collect($group['products'])
-                        ->filter(fn($p) => (float) $p['quantity'] < (float) $quantityBelow)
-                        ->values();
-
-                    return [
-                        'date' => $group['date'],
-                        'products' => $filteredProducts,
-                    ];
-                })->filter(fn($g) => $g['products']->isNotEmpty())->values();
-            }
-
-            // 🔸 Paginação manual
+            // 🔸 Paginação manual após agrupar
             $total = $grouped->count();
             $offset = ($page - 1) * $limit;
             $paged = $grouped->slice($offset, $limit)->values();
@@ -151,6 +139,7 @@ class InventoryController extends Controller
             ], 500);
         }
     }
+
 
 
 }
