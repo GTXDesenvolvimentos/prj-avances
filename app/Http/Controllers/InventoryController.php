@@ -59,21 +59,19 @@ class InventoryController extends Controller
                 });
             }
 
-            // 🔸 Pega todos os movimentos ordenados por data
-            $allMovements = $query->orderBy('created_at', 'desc')->get();
+            // 🔸 Aqui usamos get() (sem paginate) para agrupar corretamente
+            $allMovements = $query->orderBy('product_id')->get();
 
-            // 🔹 Agrupa por produto + data (Y-m-d)
+            // 🔹 Agrupa por produto
             $grouped = $allMovements
-                ->groupBy(function ($item) {
-                    return $item->product_id . '_' . \Carbon\Carbon::parse($item->created_at)->format('Y-m-d');
-                })
+                ->groupBy('product_id')
                 ->map(function ($items) {
                     $first = $items->first();
-                    $product = $first->product;
                     $totalQuantity = $items->sum('quantity_movement');
 
                     $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
                         $w = $warehouseItems->first()->warehouse;
+
                         return [
                             'warehouse' => [
                                 'id' => $w->id ?? null,
@@ -84,14 +82,16 @@ class InventoryController extends Controller
                         ];
                     })->values();
 
+                    $product = $first->product;
+
                     return [
                         'id' => $first->id,
-                        'date' => \Carbon\Carbon::parse($first->created_at)->format('Y-m-d'),
                         'quantity' => number_format($totalQuantity, 2, '.', ''),
                         'updated_at' => $first->updated_at,
                         'created_at' => $first->created_at,
                         'product' => $product ? [
                             'id' => $product->id,
+                            'product_code' => $product->product_code, // ✅ ADICIONADO AQUI
                             'name' => $product->name,
                             'description' => $product->description,
                             'category' => $product->category ? [
@@ -114,7 +114,6 @@ class InventoryController extends Controller
                     }
                     return true;
                 })
-                ->sortByDesc('date') // 🔹 ordena pelos dias mais recentes
                 ->values();
 
             // 🔸 Paginação manual após agrupar
