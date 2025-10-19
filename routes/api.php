@@ -3,6 +3,7 @@
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryMovementsController;
 use App\Http\Controllers\MovementTypeController;
+use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -66,6 +67,13 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::post('warehouse', [WarehouseController::class, 'store']);
     Route::put('warehouse/{id}', [WarehouseController::class, 'update']);
     Route::delete('warehouse/{id}', [WarehouseController::class, 'destroy']);
+
+    //Partiner  routes
+    Route::get('partner', [PartnerController::class, 'index']);
+    Route::get('partner/{id}', [PartnerController::class, 'show']);
+    Route::post('partner', [PartnerController::class, 'store']);
+    Route::put('partner/{id}', [PartnerController::class, 'update']);
+    Route::delete('partner/{id}', [PartnerController::class, 'destroy']);
     
 
 });

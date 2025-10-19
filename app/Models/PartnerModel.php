@@ -117,15 +117,7 @@ class PartnerModel extends Model
         return $query->where('company_id', $companyId);
     }
 
-    /**
-     * Get the company that owns the partner.
-     */
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
-    }
-
-    /**
+     /**
      * Check if partner is active.
      *
      * @return bool

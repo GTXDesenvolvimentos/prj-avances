@@ -15,7 +15,7 @@ class PartnerController extends Controller
     {
         try {
             $user = auth()->user();
-            $limit = (int) $request->query('limit', 15);
+            $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
             $partner_type = $request->query('partner_type');
             $status = $request->query('status');
