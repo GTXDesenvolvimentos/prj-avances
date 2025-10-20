@@ -117,7 +117,7 @@ class PartnerModel extends Model
         return $query->where('company_id', $companyId);
     }
 
-     /**
+    /**
      * Check if partner is active.
      *
      * @return bool
@@ -153,5 +153,15 @@ class PartnerModel extends Model
         ];
 
         return $types[$this->partner_type] ?? ucfirst($this->partner_type);
+    }
+
+    public function contacts()
+    {
+        return $this->hasMany(ContactEntitiesModel::class, 'partner_id');
+    }
+
+    public function addresses()
+    {
+        return $this->hasMany(AddressModel::class, 'partner_id');
     }
 }

@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AddressModel;
+use App\Models\ContactEntitiesModel;
 use App\Models\PartnerModel;
+use DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -14,58 +17,85 @@ class PartnerController extends Controller
     public function index(Request $request)
     {
         try {
-            $user = auth()->user();
-            $limit = (int) $request->query('limit', 25);
+            $user = $request->user();
+            $companyId = $user->company_id;
+
+            // 🔹 Parâmetros originais
             $search = trim($request->query('search', ''), '"\'');
-            $partner_type = $request->query('partner_type');
+            $partnerType = $request->query('partner_type');
             $status = $request->query('status');
+            $taxId = $request->query('taxId');
 
-            $query = PartnerModel::where('company_id', $user->company_id);
+            $limit = (int) $request->query('limit', 25);
 
-            if ($search) {
+            // 🔹 Novos parâmetros opcionais
+            $name = trim($request->query('name', ''), '"\'');
+
+            $query = PartnerModel::with(['contacts', 'addresses'])
+                ->where('company_id', $companyId);
+
+            // 🔹 Busca genérica (mantida)
+            if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('tax_id', 'LIKE', "%{$search}%")
-                        ->orWhere('note', 'LIKE', "%{$search}%");
+                    $q->where('name', 'like', "%{$search}%");
+                    //->orWhere('tax_id', 'like', "%{$search}%");
                 });
             }
 
-            if ($partner_type) {
-                $query->where('partner_type', $partner_type);
+            // 🔹 Filtro específico por nome
+            if (!empty($name)) {
+                $query->where('name', 'like', "%{$name}%");
             }
 
-            if ($status !== null) {
-                $query->where('status', filter_var($status, FILTER_VALIDATE_BOOLEAN));
+            // 🔹 Filtro específico por tax_id
+            if (!empty($taxId)) {
+                $query->where('tax_id', 'like', "%{$taxId}%");
             }
 
-            $partners = $query->paginate($limit);
+            // 🔹 Filtro por tipo de parceiro
+            if (!empty($partnerType) && $partnerType !== 'ambos') {
+                $query->where('partner_type', $partnerType);
+            }
+
+            // 🔹 Filtro por status
+            if (!is_null($status)) {
+                $query->where('status', (bool) $status);
+            }
+
+            // 🔹 Retorna o primeiro resultado (ou o único conforme filtros)
+            $partners = $query->get();
+
+            if (!$partners) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nenhum parceiro encontrado.',
+                ], 404);
+            }
+
+            $products = $query->paginate($limit);
 
             return response()->json([
                 'success' => true,
-                'data' => $partners->items(),
+                'partner' => $partners,
                 'pagination' => [
-                    'page' => $partners->currentPage(),
-                    'limit' => $partners->perPage(),
-                    'page_count' => $partners->lastPage(),
-                    'total_count' => $partners->total(),
+                    'page' => $products->currentPage(),
+                    'limit' => $products->perPage(),
+                    'page_count' => $products->lastPage(),
+                    'total_count' => $products->total(),
                 ],
             ], 200);
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage(),
-                ],
-            ], status: 400);
+
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage(),
-                ],
-            ], status: 500);
+                'message' => 'Erro ao listar parceiro.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
+
+
 
     public function store(Request $request)
     {
@@ -77,6 +107,25 @@ class PartnerController extends Controller
             'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
+
+            // contatos
+            'contacts' => 'nullable|array',
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.note' => 'nullable|string|max:200',
+            'contacts.*.type' => 'nullable|string|max:200',
+            'contacts.*.contact' => 'nullable|string|max:200',
+
+            // endereços
+            'addresses' => 'nullable|array',
+            'addresses.*.zip_code' => 'required|string|max:10',
+            'addresses.*.street' => 'required|string|max:200',
+            'addresses.*.number' => 'nullable|string|max:10',
+            'addresses.*.complement' => 'nullable|string|max:100',
+            'addresses.*.neighborhood' => 'nullable|string|max:100',
+            'addresses.*.city' => 'required|string|max:100',
+            'addresses.*.state' => 'required|string|max:2',
+            'addresses.*.status' => 'nullable|string|max:1',
+            'addresses.*.active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -88,7 +137,11 @@ class PartnerController extends Controller
 
         try {
             $companyId = auth()->user()->company_id;
+            $userId = auth()->id();
 
+            DB::beginTransaction();
+
+            // Cria o parceiro
             $partner = PartnerModel::create([
                 'name' => $data['name'],
                 'tax_id' => $data['tax_id'],
@@ -98,61 +151,113 @@ class PartnerController extends Controller
                 'note' => $data['note'] ?? null,
             ]);
 
+            // Cria contatos (se existirem)
+            if (!empty($data['contacts'])) {
+                foreach ($data['contacts'] as $contact) {
+                    ContactEntitiesModel::create([
+                        'name' => $contact['name'],
+                        'note' => $contact['note'] ?? null,
+                        'partner_id' => $partner->id,
+                        'partners_id' => $partner->id,
+                        'type' => $contact['type'],
+                        'contact' => $contact['contact'],
+                        'company_id' => $companyId,
+                        'created_by' => $userId,
+                    ]);
+                }
+            }
+
+            // Cria endereços (se existirem)
+            if (!empty($data['addresses'])) {
+                foreach ($data['addresses'] as $address) {
+                    AddressModel::create([
+                        'company_id' => $companyId,
+                        'partner_id' => $partner->id,
+                        'zip_code' => $address['zip_code'],
+                        'street' => $address['street'],
+                        'number' => $address['number'] ?? null,
+                        'complement' => $address['complement'] ?? null,
+                        'neighborhood' => $address['neighborhood'] ?? null,
+                        'city' => $address['city'],
+                        'state' => $address['state'],
+                        'status' => $address['status'] ?? 'A',
+                        'active' => $address['active'] ?? true,
+                        'created_by' => $userId,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'data' => $partner,
+                'partner' => [
+                    'id' => $partner->id,
+                    'name' => $partner->name,
+                    'tax_id' => $partner->tax_id,
+                    'partner_type' => $partner->partner_type,
+                    'status' => $partner->status,
+                    'note' => $partner->note,
+                    'contacts' => $partner->contacts,
+                    'addresses' => $partner->addresses,
+                ]
             ], 201);
+
         } catch (QueryException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'errors' => [
                     'database' => $e->getMessage(),
                 ],
-            ], status: 400);
+            ], 400);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'errors' => [
                     'general' => $e->getMessage(),
                 ],
-            ], status: 500);
-        }
-    }
-
-    public function show($id)
-    {
-        try {
-            $user = auth()->user();
-            $partner = PartnerModel::where('company_id', $user->company_id)
-                ->findOrFail($id);
-
-            return response()->json([
-                'success' => true,
-                'data' => $partner,
-            ], 200);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Parceiro não encontrado.'],
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
             ], 500);
         }
     }
 
+
+
     public function update(Request $request, $id)
     {
-        $data = $request->all();
+        $data = $request->json()->all();
 
         $validator = Validator::make($data, [
-            'name' => 'sometimes|required|string|min:1|max:255',
-            'tax_id' => 'sometimes|required|string|max:20|unique:partners,tax_id,' . $id,
-            'partner_type' => ['sometimes', 'required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
+            'name' => 'required|string|min:1|max:255',
+            'tax_id' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('partners', 'tax_id')->ignore($id),
+            ],
+            'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
+
+            // contatos
+            'contacts' => 'nullable|array',
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.note' => 'nullable|string|max:200',
+            'contacts.*.type' => 'nullable|string|max:200',
+            'contacts.*.contact' => 'nullable|string|max:200',
+
+            // endereços
+            'addresses' => 'nullable|array',
+            'addresses.*.zip_code' => 'required|string|max:10',
+            'addresses.*.street' => 'required|string|max:200',
+            'addresses.*.number' => 'nullable|string|max:10',
+            'addresses.*.complement' => 'nullable|string|max:100',
+            'addresses.*.neighborhood' => 'nullable|string|max:100',
+            'addresses.*.city' => 'required|string|max:100',
+            'addresses.*.state' => 'required|string|max:2',
+            'addresses.*.status' => 'nullable|string|max:1',
+            'addresses.*.active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -163,33 +268,165 @@ class PartnerController extends Controller
         }
 
         try {
-            $user = auth()->user();
-            $partner = PartnerModel::where('company_id', $user->company_id)
-                ->findOrFail($id);
+            $companyId = auth()->user()->company_id;
+            $userId = auth()->id();
 
+            $partner = PartnerModel::where('company_id', $companyId)
+                ->where('id', $id)
+                ->first();
+
+            if (!$partner) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Parceiro não encontrado.',
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            // 🔹 Atualiza dados principais
             $partner->update([
-                'name' => $data['name'] ?? $partner->name,
-                'tax_id' => $data['tax_id'] ?? $partner->tax_id,
-                'partner_type' => $data['partner_type'] ?? $partner->partner_type,
+                'name' => $data['name'],
+                'tax_id' => $data['tax_id'],
+                'partner_type' => $data['partner_type'],
                 'status' => $data['status'] ?? $partner->status,
                 'note' => $data['note'] ?? $partner->note,
             ]);
 
+            // 🔹 Atualiza contatos (remove e recria)
+            if (isset($data['contacts'])) {
+                ContactEntitiesModel::where('partner_id', $partner->id)->delete();
+
+                foreach ($data['contacts'] as $contact) {
+                    ContactEntitiesModel::create([
+                        'name' => $contact['name'],
+                        'note' => $contact['note'] ?? null,
+                        'partner_id' => $partner->id,
+                        'partners_id' => $partner->id,
+                        'type' => $contact['type'] ?? null,
+                        'contact' => $contact['contact'] ?? null,
+                        'company_id' => $companyId,
+                        'created_by' => $userId,
+                    ]);
+                }
+            }
+
+            // 🔹 Atualiza endereços (remove e recria)
+            if (isset($data['addresses'])) {
+                AddressModel::where('partner_id', $partner->id)->delete();
+
+                foreach ($data['addresses'] as $address) {
+                    AddressModel::create([
+                        'company_id' => $companyId,
+                        'partner_id' => $partner->id,
+                        'zip_code' => $address['zip_code'],
+                        'street' => $address['street'],
+                        'number' => $address['number'] ?? null,
+                        'complement' => $address['complement'] ?? null,
+                        'neighborhood' => $address['neighborhood'] ?? null,
+                        'city' => $address['city'],
+                        'state' => $address['state'],
+                        'status' => $address['status'] ?? 'A',
+                        'active' => $address['active'] ?? true,
+                        'created_by' => $userId,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            // 🔹 Recarrega com relacionamentos atualizados
+            $partner->load(['contacts', 'addresses']);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Parceiro atualizado com sucesso!',
-                'data' => $partner,
+                'partner' => [
+                    'id' => $partner->id,
+                    'name' => $partner->name,
+                    'tax_id' => $partner->tax_id,
+                    'partner_type' => $partner->partner_type,
+                    'status' => $partner->status,
+                    'note' => $partner->note,
+                    'contacts' => $partner->contacts,
+                    'addresses' => $partner->addresses,
+                ]
             ], 200);
+
+        } catch (QueryException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'database' => $e->getMessage(),
+                ],
+            ], 400);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'general' => $e->getMessage(),
+                ],
+            ], 500);
+        }
+    }
+
+
+
+    public function show($id)
+    {
+        try {
+            $user = auth()->user();
+
+            // 🔹 Carrega o parceiro com contatos e endereços
+            $partner = PartnerModel::with(['contacts', 'addresses'])
+                ->where('company_id', $user->company_id)
+                ->findOrFail($id);
+
+            // 🔹 Formata o retorno para ficar igual à index()
+            $formatted = [
+                'id' => $partner->id,
+                'name' => $partner->name,
+                'tax_id' => $partner->tax_id,
+                'partner_type' => $partner->partner_type,
+                'status' => $partner->status,
+                'note' => $partner->note,
+                'contacts' => $partner->contacts->map(function ($c) {
+                    return [
+                        'id' => $c->id,
+                        'name' => $c->name,
+                        'type' => $c->type,
+                        'contact' => $c->contact,
+                        'note' => $c->note,
+                    ];
+                }),
+                'addresses' => $partner->addresses->map(function ($a) {
+                    return [
+                        'id' => $a->id,
+                        'zip_code' => $a->zip_code,
+                        'street' => $a->street,
+                        'number' => $a->number,
+                        'district' => $a->district ?? null,
+                        'neighborhood' => $a->neighborhood ?? null,
+                        'city' => $a->city,
+                        'state' => $a->state,
+                        'country' => $a->country ?? 'Brasil',
+                        'complement' => $a->complement,
+                        'note' => $a->note ?? null,
+                    ];
+                }),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'partner' => $formatted,
+            ], 200);
+
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'errors' => ['general' => 'Parceiro não encontrado.'],
             ], 404);
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['database' => $e->getMessage()],
-            ], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -198,18 +435,37 @@ class PartnerController extends Controller
         }
     }
 
+
+
     public function destroy($id)
     {
         try {
             $user = auth()->user();
+
+            // 🔹 Busca o parceiro da empresa do usuário
             $partner = PartnerModel::where('company_id', $user->company_id)
+                ->with(['contacts', 'addresses'])
                 ->findOrFail($id);
 
+            // 🔹 Soft delete dos relacionamentos (opcional, caso queira manter integridade)
+            if ($partner->contacts) {
+                foreach ($partner->contacts as $contact) {
+                    $contact->delete();
+                }
+            }
+
+            if ($partner->addresses) {
+                foreach ($partner->addresses as $address) {
+                    $address->delete();
+                }
+            }
+
+            // 🔹 Soft delete do parceiro
             $partner->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Parceiro marcado como excluído com sucesso!',
+                'message' => 'Parceiro e dados relacionados marcados como excluídos com sucesso!',
                 'data' => [
                     'id' => $partner->id,
                     'deleted_at' => $partner->deleted_at,
@@ -221,13 +477,17 @@ class PartnerController extends Controller
                 'success' => false,
                 'errors' => ['general' => 'Parceiro não encontrado.'],
             ], 404);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'errors' => ['general' => $e->getMessage()],
             ], 500);
         }
+
+
     }
+
 
     public function restore($id)
     {
@@ -265,82 +525,4 @@ class PartnerController extends Controller
         }
     }
 
-    public function forceDelete($id)
-    {
-        try {
-            $user = auth()->user();
-            $partner = PartnerModel::withTrashed()
-                ->where('company_id', $user->company_id)
-                ->findOrFail($id);
-
-            $partner->forceDelete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Parceiro excluído permanentemente com sucesso!',
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Parceiro não encontrado.'],
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
-    }
-
-    public function activePartners()
-    {
-        try {
-            $user = auth()->user();
-            $partners = PartnerModel::where('company_id', $user->company_id)
-                ->active()
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $partners,
-                'count' => $partners->count(),
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
-    }
-
-    public function byType(Request $request, $type)
-    {
-        try {
-            $validTypes = ['customer', 'supplier', 'distributor', 'reseller', 'partner'];
-
-            if (!in_array($type, $validTypes)) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => ['general' => 'Tipo de parceiro inválido.'],
-                ], 400);
-            }
-
-            $user = auth()->user();
-            $partners = PartnerModel::where('company_id', $user->company_id)
-                ->byType($type)
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $partners,
-                'count' => $partners->count(),
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
-    }
 }
