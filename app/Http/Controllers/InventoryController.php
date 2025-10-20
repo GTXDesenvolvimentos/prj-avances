@@ -218,7 +218,7 @@ class InventoryController extends Controller
 
                     return [
                         'id' => $first->id,
-                        'quantity_total' => number_format($totalQuantity, 2, '.', ''), // ✅ saldo real do produto
+                        'quantity' => number_format($totalQuantity, 2, '.', ''), // ✅ saldo real do produto
                         'updated_at' => $first->updated_at,
                         'created_at' => $first->created_at,
                         'product' => $product ? [
