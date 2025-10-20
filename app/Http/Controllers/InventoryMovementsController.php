@@ -60,7 +60,7 @@ class InventoryMovementsController extends Controller
             }
 
             // Ordenação (mais recentes primeiro)
-            $query->orderBy('created_at');
+            $query->orderBy('id', 'desc');
 
             // Paginação
             $movements = $query->paginate($limit);
