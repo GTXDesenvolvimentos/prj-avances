@@ -67,4 +67,8 @@ class InventoryModel extends Model
         return $this->belongsTo(CompanyModel::class, 'company_id', 'id')->withTrashed();
     }
 
+    public function movementType()
+    {
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type');
+    }
 }
