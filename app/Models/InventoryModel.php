@@ -43,6 +43,7 @@ class InventoryModel extends Model
      * Relações
      */
 
+     
     // Produto vinculado
 
     public function product()
