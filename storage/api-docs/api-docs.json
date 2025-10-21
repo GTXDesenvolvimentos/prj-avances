@@ -1,0 +1,1637 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API Avances",
+        "description": "Documentação gerada com L5-Swagger e OpenAPI 3.0",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Servidor local"
+        }
+    ],
+    "paths": {
+        "/register": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Cadastro de novo usuário",
+                "description": "Cria um novo usuário e retorna o token JWT",
+                "operationId": "0903f2e0df1a8857bee538fc055417f0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "João da Silva"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "example": "joao@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Usuário registrado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "João da Silva"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "joao@example.com"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "eyJ0eXAiOiJKV1QiLCJhbGci..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    },
+                    "400": {
+                        "description": "Erro de banco de dados"
+                    },
+                    "500": {
+                        "description": "Erro interno do servidor"
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login de usuário",
+                "description": "Autentica o usuário e retorna um token JWT",
+                "operationId": "2dd578ff7aba2721293dac66833b27d1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "example": "joao@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login bem-sucedido",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "eyJ0eXAiOiJKV1QiLCJhbGci..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais inválidas"
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Obtém os dados do usuário autenticado",
+                "description": "Retorna os dados do usuário autenticado com base no token JWT",
+                "operationId": "e18baa7d6dfc432241dca2fc1985ce40",
+                "responses": {
+                    "200": {
+                        "description": "Usuário autenticado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "user": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "João da Silva"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "joao@example.com"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou expirado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout do usuário",
+                "description": "Invalida o token JWT atual",
+                "operationId": "68a6108af04af5e3bc1ea68a6c6f1299",
+                "responses": {
+                    "200": {
+                        "description": "Logout realizado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logout realizado com sucesso"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao fazer logout"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory": {
+            "get": {
+                "tags": [
+                    "Inventory"
+                ],
+                "summary": "Listar estoque atual (saldo real por produto)",
+                "description": "Retorna os saldos de estoque agrupados por produto e armazém, considerando entradas e saídas.",
+                "operationId": "946d37aca9b2f9c4dd3c0af8960a1a7e",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Quantidade de registros por página",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 25
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Número da página para paginação",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Busca pelo nome ou descrição do produto",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Parafuso"
+                        }
+                    },
+                    {
+                        "name": "product_id",
+                        "in": "query",
+                        "description": "Filtrar por ID do produto",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    },
+                    {
+                        "name": "quantity_below",
+                        "in": "query",
+                        "description": "Filtrar produtos com quantidade abaixo de um valor",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de produtos com saldo em estoque",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Inventory"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "limit": {
+                                                    "type": "integer",
+                                                    "example": 25
+                                                },
+                                                "page_count": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "total_count": {
+                                                    "type": "integer",
+                                                    "example": 120
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Empresa não identificada"
+                    },
+                    "500": {
+                        "description": "Erro interno ao listar o estoque"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory-movements": {
+            "get": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Listar movimentos de estoque",
+                "description": "Retorna todos os movimentos de estoque filtrados por produto, data, etc.",
+                "operationId": "fbf32c9cd1154f25ec3c96b97f2e7ff5",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Limite por página",
+                        "schema": {
+                            "type": "integer",
+                            "example": 25
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Busca pelo nome do produto",
+                        "schema": {
+                            "type": "string",
+                            "example": "Parafuso"
+                        }
+                    },
+                    {
+                        "name": "product_id",
+                        "in": "query",
+                        "description": "Filtrar por ID do produto",
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    },
+                    {
+                        "name": "start_date",
+                        "in": "query",
+                        "description": "Data inicial (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "example": "2025-10-01"
+                        }
+                    },
+                    {
+                        "name": "end_date",
+                        "in": "query",
+                        "description": "Data final (YYYY-MM-DD)",
+                        "schema": {
+                            "type": "string",
+                            "example": "2025-10-20"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de movimentos retornada com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/InventoryMovement"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/Pagination"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno ao listar movimentos"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Registrar novo movimento de estoque",
+                "operationId": "20bb9d5476177b2ee3a611c1a2078e58",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryMovement"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Movimento criado com sucesso",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryMovement"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    },
+                    "500": {
+                        "description": "Erro interno ao criar movimento"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory-movements/{id}": {
+            "get": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Exibir um movimento específico",
+                "operationId": "85bbcaa55ee44009c3153c96b58e0e39",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID do movimento",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Movimento encontrado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryMovement"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Movimento não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Atualizar movimento de estoque",
+                "operationId": "c58504bb2389028df03486c341215c8c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryMovement"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Atualizado com sucesso"
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    },
+                    "404": {
+                        "description": "Não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Excluir movimento de estoque",
+                "operationId": "16b6d468f6289fc680677e4b7afd7aee",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Movimento excluído com sucesso"
+                    },
+                    "404": {
+                        "description": "Movimento não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory-movements/{id}/restore": {
+            "patch": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Restaurar movimento excluído (soft delete)",
+                "operationId": "1295c3c55974f2058942ab58e8869ef0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Restaurado com sucesso"
+                    },
+                    "404": {
+                        "description": "Movimento não encontrado"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory-movements/product/{productId}": {
+            "get": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Listar movimentos por produto",
+                "operationId": "f2dba4ac7258f42d2fdcdea87d3647b8",
+                "parameters": [
+                    {
+                        "name": "productId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Movimentos retornados",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/InventoryMovement"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory-movements/warehouse/{warehouseId}": {
+            "get": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Listar movimentos por armazém",
+                "operationId": "d4ea8efcec821047856b94eae0b02f3e",
+                "parameters": [
+                    {
+                        "name": "warehouseId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Movimentos retornados",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/InventoryMovement"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inventory-movements/stock": {
+            "post": {
+                "tags": [
+                    "Inventory Movements"
+                ],
+                "summary": "Obter saldo atual por produto e armazém",
+                "operationId": "38f8335c6e2ee0284ac4257d339089ca",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "product_id",
+                                    "warehouse_id"
+                                ],
+                                "properties": {
+                                    "product_id": {
+                                        "type": "integer",
+                                        "example": 5
+                                    },
+                                    "warehouse_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Saldo retornado",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "product_id": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "warehouse_id": {
+                                                    "type": "integer",
+                                                    "example": 2
+                                                },
+                                                "current_stock": {
+                                                    "type": "number",
+                                                    "example": 150.25
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/products": {
+            "get": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Lista produtos",
+                "description": "Retorna uma lista paginada de produtos da empresa do usuário autenticado.",
+                "operationId": "1bfaa78d1c2c3848ab8165c5dadcad3e",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Quantidade de registros por página",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 25
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Texto de busca (nome, código ou descrição)",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista retornada com sucesso"
+                    },
+                    "401": {
+                        "description": "Não autorizado"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Cria um novo produto",
+                "operationId": "e8185e307706e2cd84bbcf5171e2f09d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "unit_id",
+                                    "category_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "unit_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Produto exemplo"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Descrição do produto"
+                                    },
+                                    "availability": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "enum": [
+                                                "sale",
+                                                "rental",
+                                                "internal"
+                                            ]
+                                        }
+                                    },
+                                    "sale_price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 50
+                                    },
+                                    "rental_price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 20
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Produto criado com sucesso"
+                    },
+                    "422": {
+                        "description": "Erro de validação"
+                    }
+                }
+            }
+        },
+        "/api/products/{id}": {
+            "get": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Exibe um produto específico",
+                "operationId": "7ab21ddb713501f3d4c2914892c02a21",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID do produto",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Produto encontrado"
+                    },
+                    "404": {
+                        "description": "Produto não encontrado"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Atualiza um produto",
+                "operationId": "6a7e11900844cd85cff66e662b82bd4c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "unit_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "category_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Produto atualizado"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Nova descrição"
+                                    },
+                                    "availability": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "enum": [
+                                                "sale",
+                                                "rental",
+                                                "internal"
+                                            ]
+                                        }
+                                    },
+                                    "sale_price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 45
+                                    },
+                                    "rental_price": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 18
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Produto atualizado com sucesso"
+                    },
+                    "404": {
+                        "description": "Produto não encontrado"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Remove um produto",
+                "operationId": "e80a6ca46716acee6b47ea1ac91663c0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Produto removido com sucesso"
+                    },
+                    "404": {
+                        "description": "Produto não encontrado"
+                    }
+                }
+            }
+        },
+        "/api/warehouses": {
+            "get": {
+                "tags": [
+                    "Warehouses"
+                ],
+                "summary": "List all warehouses",
+                "description": "Retrieve a paginated list of warehouses with optional search and sorting.",
+                "operationId": "cab30faea02ec476b845ce791e30635b",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 25
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search term for filtering warehouses by name or note",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Central Warehouse"
+                        }
+                    },
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "description": "Field to sort by",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "name"
+                        }
+                    },
+                    {
+                        "name": "sort_dir",
+                        "in": "query",
+                        "description": "Sort direction (asc or desc)",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "asc"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of warehouses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Warehouse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "properties": {
+                                                "page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "limit": {
+                                                    "type": "integer",
+                                                    "example": 25
+                                                },
+                                                "page_count": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "total_count": {
+                                                    "type": "integer",
+                                                    "example": 100
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Warehouses"
+                ],
+                "summary": "Create a new warehouse",
+                "description": "Add a new warehouse to the system.",
+                "operationId": "35cb07849f875859a84a1c37f93e8294",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "address_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "address_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Central Storage"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Main warehouse for distribution"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Warehouse successfully created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warehouse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "500": {
+                        "description": "Database error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/warehouses/{id}": {
+            "get": {
+                "tags": [
+                    "Warehouses"
+                ],
+                "summary": "Show a specific warehouse",
+                "description": "Retrieve details of a specific warehouse by ID.",
+                "operationId": "50b188670a3ef5c41fd1cf4a699c41f0",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Warehouse found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warehouse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Warehouse not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Warehouses"
+                ],
+                "summary": "Update an existing warehouse",
+                "description": "Modify the details of an existing warehouse.",
+                "operationId": "bd31d9a687159f7167b2ecdeaa69e9be",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "address_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Updated Warehouse"
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Updated description"
+                                    },
+                                    "status": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Warehouse successfully updated"
+                    },
+                    "404": {
+                        "description": "Warehouse not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Warehouses"
+                ],
+                "summary": "Delete a warehouse",
+                "description": "Soft delete a warehouse by ID.",
+                "operationId": "b10a715b5257ca74f53c8407ac220de4",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Warehouse ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Warehouse successfully deleted"
+                    },
+                    "404": {
+                        "description": "Warehouse not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Inventory": {
+                "title": "Inventory",
+                "description": "Modelo de inventário (movimentos de estoque)",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "warehouse_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "quantity_movement": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 25.5
+                    },
+                    "quantity_total": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 120
+                    },
+                    "movement_type": {
+                        "type": "string",
+                        "example": "in"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-21T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-21T12:30:00Z"
+                    },
+                    "product": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 10
+                            },
+                            "product_code": {
+                                "type": "string",
+                                "example": "PRD-001"
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "Produto Teste"
+                            },
+                            "description": {
+                                "type": "string",
+                                "example": "Descrição do produto"
+                            },
+                            "category": {
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": 3
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Categoria A"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "unit": {
+                                "properties": {
+                                    "id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "symbol": {
+                                        "type": "string",
+                                        "example": "kg"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Quilograma"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "quantity_per_warehouses": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "warehouse": {
+                                    "properties": {
+                                        "id": {
+                                            "type": "integer",
+                                            "example": 2
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "Depósito Central"
+                                        },
+                                        "note": {
+                                            "type": "string",
+                                            "example": "Armazém principal"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "quantity": {
+                                    "type": "number",
+                                    "format": "float",
+                                    "example": 100.5
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "InventoryMovement": {
+                "title": "Inventory Movement",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "example": 5
+                    },
+                    "warehouse_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "movement_type": {
+                        "description": "ID do tipo de movimento",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "quantity_movement": {
+                        "type": "number",
+                        "example": 10.5
+                    },
+                    "quantity_total": {
+                        "type": "number",
+                        "example": 100
+                    },
+                    "notes": {
+                        "type": "string",
+                        "example": "Entrada de produto"
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "active"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-21T12:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-21T12:30:00Z"
+                    },
+                    "product": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 5
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "Produto Exemplo"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "warehouse": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 2
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "Depósito Central"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "movement_type_detail": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "Entrada"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "Pagination": {
+                "title": "Pagination Metadata",
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "example": 25
+                    },
+                    "page_count": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "example": 250
+                    }
+                },
+                "type": "object"
+            },
+            "Warehouse": {
+                "title": "Warehouse",
+                "description": "Warehouse resource model",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "company_id": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "address_id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Main Warehouse"
+                    },
+                    "note": {
+                        "type": "string",
+                        "example": "Central distribution hub"
+                    },
+                    "status": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-21T10:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-10-21T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Endpoints de autenticação JWT"
+        },
+        {
+            "name": "Inventory Movements",
+            "description": "Gerenciamento dos movimentos de estoque (entradas, saídas, ajustes, transferências)"
+        },
+        {
+            "name": "Products",
+            "description": "Endpoints de gerenciamento de produtos"
+        },
+        {
+            "name": "Inventory",
+            "description": "Inventory"
+        },
+        {
+            "name": "Warehouses",
+            "description": "Warehouses"
+        }
+    ]
+}

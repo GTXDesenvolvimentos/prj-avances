@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\AddressModel;
+
+
 use App\Models\ContactEntitiesModel;
 use App\Models\PartnerModel;
 use DB;
@@ -20,82 +22,68 @@ class PartnerController extends Controller
             $user = $request->user();
             $companyId = $user->company_id;
 
-            // 🔹 Parâmetros originais
+            // 🔹 Filter parameters
             $search = trim($request->query('search', ''), '"\'');
             $partnerType = $request->query('partner_type');
             $status = $request->query('status');
-            $taxId = $request->query('taxId');
-
             $limit = (int) $request->query('limit', 25);
-
-            // 🔹 Novos parâmetros opcionais
             $name = trim($request->query('name', ''), '"\'');
 
+            // 🔹 Base query
             $query = PartnerModel::with(['contacts', 'addresses'])
                 ->where('company_id', $companyId);
 
-            // 🔹 Busca genérica (mantida)
+            // 🔹 Generic search
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                    //->orWhere('tax_id', 'like', "%{$search}%");
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('tax_id', 'like', "%{$search}%");
                 });
             }
 
-            // 🔹 Filtro específico por nome
+            // 🔹 Filter by name
             if (!empty($name)) {
                 $query->where('name', 'like', "%{$name}%");
             }
 
-            // 🔹 Filtro específico por tax_id
-            if (!empty($taxId)) {
-                $query->where('tax_id', 'like', "%{$taxId}%");
-            }
-
-            // 🔹 Filtro por tipo de parceiro
-            if (!empty($partnerType) && $partnerType !== 'ambos') {
+            // 🔹 Filter by partner type
+            if (!empty($partnerType) && $partnerType !== 'both') {
                 $query->where('partner_type', $partnerType);
             }
 
-            // 🔹 Filtro por status
+            // 🔹 Filter by status
             if (!is_null($status)) {
                 $query->where('status', (bool) $status);
             }
 
-            // 🔹 Retorna o primeiro resultado (ou o único conforme filtros)
-            $partners = $query->get();
+            // 🔹 Sort by newest first
+            $query->orderByDesc('created_at');
 
-            if (!$partners) {
+            // 🔹 Pagination
+            $partners = $query->paginate($limit);
+
+            // 🔹 Check if no partners found
+            if ($partners->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Nenhum parceiro encontrado.',
+                    'message' => 'No partners found.',
                 ], 404);
             }
 
-            $products = $query->paginate($limit);
-
+            // 🔹 Successful response
             return response()->json([
                 'success' => true,
-                'partner' => $partners,
-                'pagination' => [
-                    'page' => $products->currentPage(),
-                    'limit' => $products->perPage(),
-                    'page_count' => $products->lastPage(),
-                    'total_count' => $products->total(),
-                ],
+                'partners' => $partners, // includes pagination metadata
             ], 200);
-
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao listar parceiro.',
+                'message' => 'Error while listing partners.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
-
-
 
     public function store(Request $request)
     {
@@ -104,7 +92,8 @@ class PartnerController extends Controller
         $validator = Validator::make($data, [
             'name' => 'required|string|min:1|max:255',
             'tax_id' => 'required|string|max:20|unique:partners,tax_id',
-            'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
+            'partner_type' => 'nullable|array',
+            'partner_type.*' => 'in:customer,supplier',
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
 
@@ -221,8 +210,6 @@ class PartnerController extends Controller
             ], 500);
         }
     }
-
-
 
     public function update(Request $request, $id)
     {
@@ -371,8 +358,6 @@ class PartnerController extends Controller
         }
     }
 
-
-
     public function show($id)
     {
         try {
@@ -434,8 +419,6 @@ class PartnerController extends Controller
             ], 500);
         }
     }
-
-
 
     public function destroy($id)
     {

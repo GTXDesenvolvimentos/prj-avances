@@ -10,23 +10,54 @@ use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
+/**
+ * @OA\Tag(
+ *     name="Auth",
+ *     description="Endpoints de autenticação JWT"
+ * )
+ */
 class AuthController extends Controller
 {
     /**
-     * Cadastro de usuário
+     * @OA\Post(
+     *     path="/register",
+     *     tags={"Auth"},
+     *     summary="Cadastro de novo usuário",
+     *     description="Cria um novo usuário e retorna o token JWT",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name", "email", "password", "password_confirmation"},
+     *             @OA\Property(property="name", type="string", example="João da Silva"),
+     *             @OA\Property(property="email", type="string", example="joao@example.com"),
+     *             @OA\Property(property="password", type="string", example="123456"),
+     *             @OA\Property(property="password_confirmation", type="string", example="123456")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Usuário registrado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="user", type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="João da Silva"),
+     *                 @OA\Property(property="email", type="string", example="joao@example.com")
+     *             ),
+     *             @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGci...")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Erro de validação"),
+     *     @OA\Response(response=400, description="Erro de banco de dados"),
+     *     @OA\Response(response=500, description="Erro interno do servidor")
+     * )
      */
     public function register(Request $request)
     {
-        // Garantir que Laravel interprete o JSON
         $data = $request->json()->all();
-
         $lastCompanyId = User::max('company_id');
-
-        // Adiciona 1 (começando de 1 se estiver vazio)
         $nextCompanyId = ($lastCompanyId ?? 0) + 1;
 
-
-        // Validação inicial
         $validator = Validator::make($data, [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
@@ -34,14 +65,10 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
         try {
-            // Tentar criar o usuário
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -49,42 +76,49 @@ class AuthController extends Controller
                 'company_id' => $nextCompanyId,
             ]);
 
-            // Gerar token JWT
             $token = JWTAuth::fromUser($user);
 
             return response()->json([
                 'success' => true,
                 'user' => $user,
                 'token' => $token
-            ], status: 200);
-
+            ], 200);
         } catch (QueryException $e) {
-            // Captura erros do banco (por exemplo, violação de unique, not null)
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage()
-                ]
-            ], status: 400);
+            return response()->json(['success' => false, 'errors' => ['database' => $e->getMessage()]], 400);
         } catch (\Exception $e) {
-            // Outros erros inesperados
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage()
-                ]
-            ], status: 500);
+            return response()->json(['success' => false, 'errors' => ['general' => $e->getMessage()]], 500);
         }
     }
 
-
-
     /**
-     * Login de usuário
+     * @OA\Post(
+     *     path="/login",
+     *     tags={"Auth"},
+     *     summary="Login de usuário",
+     *     description="Autentica o usuário e retorna um token JWT",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email", "password"},
+     *             @OA\Property(property="email", type="string", example="joao@example.com"),
+     *             @OA\Property(property="password", type="string", example="123456")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login bem-sucedido",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGci...")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Credenciais inválidas")
+     * )
      */
     public function login(Request $request)
     {
         $credentials = $request->json()->all();
+
         if (!$token = JWTAuth::attempt($credentials)) {
             return response()->json([
                 'success' => false,
@@ -92,48 +126,67 @@ class AuthController extends Controller
             ], 401);
         }
 
-        return response()->json([
-            'success' => true,
-            'token' => $token
-        ]);
+        return response()->json(['success' => true, 'token' => $token]);
     }
 
     /**
-     * Usuário autenticado
+     * @OA\Get(
+     *     path="/me",
+     *     tags={"Auth"},
+     *     summary="Obtém os dados do usuário autenticado",
+     *     description="Retorna os dados do usuário autenticado com base no token JWT",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Usuário autenticado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="user", type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="João da Silva"),
+     *                 @OA\Property(property="email", type="string", example="joao@example.com")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Token inválido ou expirado")
+     * )
      */
     public function me(Request $request)
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Token inválido ou expirado'
-            ], 401);
+            return response()->json(['success' => false, 'message' => 'Token inválido ou expirado'], 401);
         }
 
-        return response()->json([
-            'success' => true,
-            'user' => $user
-        ]);
+        return response()->json(['success' => true, 'user' => $user]);
     }
 
     /**
-     * Logout
+     * @OA\Post(
+     *     path="/logout",
+     *     tags={"Auth"},
+     *     summary="Logout do usuário",
+     *     description="Invalida o token JWT atual",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Logout realizado com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(response=500, description="Erro ao fazer logout")
+     * )
      */
     public function logout(Request $request)
     {
         try {
             JWTAuth::parseToken()->invalidate();
-            return response()->json([
-                'success' => true,
-                'message' => 'Logout realizado com sucesso'
-            ]);
+            return response()->json(['success' => true, 'message' => 'Logout realizado com sucesso']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Falha ao fazer logout'
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Falha ao fazer logout'], 500);
         }
     }
 }
