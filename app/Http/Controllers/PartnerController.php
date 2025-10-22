@@ -104,7 +104,9 @@ class PartnerController extends Controller
         $validator = Validator::make($data, [
             'name' => 'required|string|min:1|max:255',
             'tax_id' => 'required|string|max:20|unique:partners,tax_id',
-            'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
+            'partner_type' => 'nullable|array',
+            'partner_type.*' => 'in:customer,supplier',
+            'person_type' => ['required', 'string', Rule::in(['legal', 'individual'])],
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
 
@@ -141,11 +143,18 @@ class PartnerController extends Controller
 
             DB::beginTransaction();
 
+            // ✅ Converte o campo partner_type para string compatível com MySQL SET
+    $partner_type = $request->partner_type;
+
+    if (is_array($partner_type)) {
+        $partner_type = implode(',', $partner_type); // ["customer","supplier"] → "customer,supplier"
+    }
+
             // Cria o parceiro
             $partner = PartnerModel::create([
                 'name' => $data['name'],
                 'tax_id' => $data['tax_id'],
-                'partner_type' => $data['partner_type'],
+                'partner_type' => $partner_type,
                 'company_id' => $companyId,
                 'status' => $data['status'] ?? true,
                 'note' => $data['note'] ?? null,
@@ -196,6 +205,7 @@ class PartnerController extends Controller
                     'name' => $partner->name,
                     'tax_id' => $partner->tax_id,
                     'partner_type' => $partner->partner_type,
+                    'person_type' => $partner->person_type,
                     'status' => $partner->status,
                     'note' => $partner->note,
                     'contacts' => $partner->contacts,
