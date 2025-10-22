@@ -155,6 +155,7 @@ class PartnerController extends Controller
                 'name' => $data['name'],
                 'tax_id' => $data['tax_id'],
                 'partner_type' => $partner_type,
+                'person_type' => $data['person_type'],
                 'company_id' => $companyId,
                 'status' => $data['status'] ?? true,
                 'note' => $data['note'] ?? null,
