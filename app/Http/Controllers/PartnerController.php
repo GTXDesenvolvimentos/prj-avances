@@ -37,30 +37,13 @@ class PartnerController extends Controller
             // 🔹 Busca genérica (mantida)
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                    //->orWhere('tax_id', 'like', "%{$search}%");
+                    $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('tax_id', 'like', "%{$search}%")
+                    ->orWhere('partner_type', 'like', "%{$search}%")
+                    ->orWhere('person_type', 'like', "%{$search}%");
                 });
             }
 
-            // 🔹 Filtro específico por nome
-            if (!empty($name)) {
-                $query->where('name', 'like', "%{$name}%");
-            }
-
-            // 🔹 Filtro específico por tax_id
-            if (!empty($taxId)) {
-                $query->where('tax_id', 'like', "%{$taxId}%");
-            }
-
-            // 🔹 Filtro por tipo de parceiro
-            if (!empty($partnerType) && $partnerType !== 'ambos') {
-                $query->where('partner_type', $partnerType);
-            }
-
-            // 🔹 Filtro por status
-            if (!is_null($status)) {
-                $query->where('status', (bool) $status);
-            }
 
             // 🔹 Retorna o primeiro resultado (ou o único conforme filtros)
             $partners = $query->get();
