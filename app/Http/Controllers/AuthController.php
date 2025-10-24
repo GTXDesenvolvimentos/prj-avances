@@ -10,23 +10,103 @@ use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
+/**
+ * @OA\Info(
+ *     title="Avances JWT Auth API",
+ *     version="1.0.0",
+ *     description="API de autenticação com JWT para sistema Avances",
+ *     @OA\Contact(
+ *         email="seu-email@dominio.com"
+ *     )
+ * )
+ * 
+ * @OA\Server(
+ *     url="http://127.0.0.1:8000/api",
+ *     description="Servidor Local"
+ * )
+ * 
+ * @OA\Schema(
+ *     schema="User",
+ *     type="object",
+ *     @OA\Property(property="id", type="integer", example=1),
+ *     @OA\Property(property="name", type="string", example="João Silva"),
+ *     @OA\Property(property="email", type="string", example="joao@email.com"),
+ *     @OA\Property(property="company_id", type="integer", example=1),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time")
+ * )
+ * 
+ * @OA\Schema(
+ *     schema="Error",
+ *     type="object",
+ *     @OA\Property(property="success", type="boolean", example=false),
+ *     @OA\Property(
+ *         property="errors",
+ *         type="object",
+ *         @OA\AdditionalProperties(type="array", @OA\Items(type="string"))
+ *     )
+ * )
+ * 
+ * @OA\SecurityScheme(
+ *     securityScheme="bearerAuth",
+ *     type="http",
+ *     scheme="bearer",
+ *     bearerFormat="JWT"
+ * )
+ */
 class AuthController extends Controller
 {
     /**
-     * Cadastro de usuário
+     * Registro de novo usuário
+     * 
+     * @OA\Post(
+     *     path="/register",
+     *     summary="Registrar novo usuário",
+     *     tags={"Autenticação"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name","email","password","password_confirmation"},
+     *             @OA\Property(property="name", type="string", example="João Silva"),
+     *             @OA\Property(property="email", type="string", format="email", example="joao@email.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="senha123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="senha123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Usuário registrado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="user", ref="#/components/schemas/User"),
+     *             @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erro de validação",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Erro no banco de dados",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Erro interno do servidor",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      */
     public function register(Request $request)
     {
-        // Garantir que Laravel interprete o JSON
+        // Seu código existente permanece o mesmo
         $data = $request->json()->all();
 
         $lastCompanyId = User::max('company_id');
-
-        // Adiciona 1 (começando de 1 se estiver vazio)
         $nextCompanyId = ($lastCompanyId ?? 0) + 1;
 
-
-        // Validação inicial
         $validator = Validator::make($data, [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
@@ -41,7 +121,6 @@ class AuthController extends Controller
         }
 
         try {
-            // Tentar criar o usuário
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -49,38 +128,63 @@ class AuthController extends Controller
                 'company_id' => $nextCompanyId,
             ]);
 
-            // Gerar token JWT
             $token = JWTAuth::fromUser($user);
 
             return response()->json([
                 'success' => true,
                 'user' => $user,
                 'token' => $token
-            ], status: 200);
+            ], 200);
 
         } catch (QueryException $e) {
-            // Captura erros do banco (por exemplo, violação de unique, not null)
             return response()->json([
                 'success' => false,
                 'errors' => [
                     'database' => $e->getMessage()
                 ]
-            ], status: 400);
+            ], 400);
         } catch (\Exception $e) {
-            // Outros erros inesperados
             return response()->json([
                 'success' => false,
                 'errors' => [
                     'general' => $e->getMessage()
                 ]
-            ], status: 500);
+            ], 500);
         }
     }
 
-
-
     /**
      * Login de usuário
+     * 
+     * @OA\Post(
+     *     path="/login",
+     *     summary="Fazer login",
+     *     tags={"Autenticação"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email","password"},
+     *             @OA\Property(property="email", type="string", format="email", example="joao@email.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="senha123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Credenciais inválidas",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Credenciais inválidas")
+     *         )
+     *     )
+     * )
      */
     public function login(Request $request)
     {
@@ -99,7 +203,30 @@ class AuthController extends Controller
     }
 
     /**
-     * Usuário autenticado
+     * Obter dados do usuário autenticado
+     * 
+     * @OA\Get(
+     *     path="/me",
+     *     summary="Obter usuário autenticado",
+     *     tags={"Autenticação"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Dados do usuário obtidos com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="user", ref="#/components/schemas/User")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=401,
+     *         description="Token inválido ou expirado",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Token inválido ou expirado")
+     *         )
+     *     )
+     * )
      */
     public function me(Request $request)
     {
@@ -119,7 +246,30 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout
+     * Logout do usuário
+     * 
+     * @OA\Post(
+     *     path="/logout",
+     *     summary="Fazer logout",
+     *     tags={"Autenticação"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Logout realizado com sucesso",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="Logout realizado com sucesso")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Falha ao fazer logout",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Falha ao fazer logout")
+     *         )
+     *     )
+     * )
      */
     public function logout(Request $request)
     {

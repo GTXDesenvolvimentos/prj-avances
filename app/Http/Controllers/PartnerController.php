@@ -21,11 +21,9 @@ class PartnerController extends Controller
             $companyId = $user->company_id;
 
             $search = trim($request->query('search', ''), '"\'');
-            $partnerType = $request->query('partner_type');
-            $status = $request->query('status');
-            $taxId = $request->query('taxId');
+            //$partnerType = $request->query('partner_type');
             $limit = (int) $request->query('limit', 25);
-            $name = trim($request->query('name', ''), '"\'');
+            //$name = trim($request->query('name', ''), '"\'');
 
             $query = PartnerModel::with(['contacts', 'addresses'])
                 ->where('company_id', $companyId);
@@ -38,6 +36,8 @@ class PartnerController extends Controller
                         ->orWhere('person_type', 'like', "%{$search}%");
                 });
             }
+
+            $query->orderBy('name', 'asc'); // <-- aqui adiciona o orderBy
 
             $partners = $query->get();
 
