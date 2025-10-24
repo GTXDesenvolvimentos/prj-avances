@@ -37,7 +37,7 @@ class PartnerController extends Controller
                 });
             }
 
-            $query->orderBy('name', 'asc'); // <-- aqui adiciona o orderBy
+            $query->orderBy('id', 'desc'); // <-- aqui adiciona o orderBy
 
             $partners = $query->get();
 
