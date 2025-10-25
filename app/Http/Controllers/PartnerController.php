@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AddressModel;
-
-
 use App\Models\ContactEntitiesModel;
 use App\Models\PartnerModel;
 use DB;
@@ -22,68 +20,57 @@ class PartnerController extends Controller
             $user = $request->user();
             $companyId = $user->company_id;
 
-            // 🔹 Filter parameters
             $search = trim($request->query('search', ''), '"\'');
-            $partnerType = $request->query('partner_type');
-            $status = $request->query('status');
+            //$partnerType = $request->query('partner_type');
             $limit = (int) $request->query('limit', 25);
-            $name = trim($request->query('name', ''), '"\'');
+            //$name = trim($request->query('name', ''), '"\'');
 
-            // 🔹 Base query
             $query = PartnerModel::with(['contacts', 'addresses'])
                 ->where('company_id', $companyId);
 
-            // 🔹 Generic search
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('tax_id', 'like', "%{$search}%");
+                        ->orWhere('tax_id', 'like', "%{$search}%")
+                        ->orWhere('partner_type', 'like', "%{$search}%")
+                        ->orWhere('person_type', 'like', "%{$search}%");
                 });
             }
 
-            // 🔹 Filter by name
-            if (!empty($name)) {
-                $query->where('name', 'like', "%{$name}%");
-            }
+            $query->orderBy('id', 'desc'); // <-- aqui adiciona o orderBy
 
-            // 🔹 Filter by partner type
-            if (!empty($partnerType) && $partnerType !== 'both') {
-                $query->where('partner_type', $partnerType);
-            }
+            $partners = $query->get();
 
-            // 🔹 Filter by status
-            if (!is_null($status)) {
-                $query->where('status', (bool) $status);
-            }
-
-            // 🔹 Sort by newest first
-            $query->orderByDesc('created_at');
-
-            // 🔹 Pagination
-            $partners = $query->paginate($limit);
-
-            // 🔹 Check if no partners found
-            if ($partners->isEmpty()) {
+            if (!$partners) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No partners found.',
                 ], 404);
             }
 
-            // 🔹 Successful response
+            $products = $query->paginate($limit);
+
             return response()->json([
                 'success' => true,
-                'partners' => $partners, // includes pagination metadata
+                'partner' => $partners,
+                'pagination' => [
+                    'page' => $products->currentPage(),
+                    'limit' => $products->perPage(),
+                    'page_count' => $products->lastPage(),
+                    'total_count' => $products->total(),
+                ],
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error while listing partners.',
+                'message' => 'Error listing partners.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
+
+
 
     public function store(Request $request)
     {
@@ -94,17 +81,16 @@ class PartnerController extends Controller
             'tax_id' => 'required|string|max:20|unique:partners,tax_id',
             'partner_type' => 'nullable|array',
             'partner_type.*' => 'in:customer,supplier',
+            'person_type' => ['required', 'string', Rule::in(['legal', 'individual'])],
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
 
-            // contatos
             'contacts' => 'nullable|array',
             'contacts.*.name' => 'required|string|max:255',
             'contacts.*.note' => 'nullable|string|max:200',
             'contacts.*.type' => 'nullable|string|max:200',
             'contacts.*.contact' => 'nullable|string|max:200',
 
-            // endereços
             'addresses' => 'nullable|array',
             'addresses.*.zip_code' => 'required|string|max:10',
             'addresses.*.street' => 'required|string|max:200',
@@ -130,17 +116,22 @@ class PartnerController extends Controller
 
             DB::beginTransaction();
 
-            // Cria o parceiro
+            $partner_type = $request->partner_type;
+
+            if (is_array($partner_type)) {
+                $partner_type = implode(',', $partner_type);
+            }
+
             $partner = PartnerModel::create([
                 'name' => $data['name'],
                 'tax_id' => $data['tax_id'],
-                'partner_type' => $data['partner_type'],
+                'partner_type' => $partner_type,
+                'person_type' => $data['person_type'],
                 'company_id' => $companyId,
                 'status' => $data['status'] ?? true,
                 'note' => $data['note'] ?? null,
             ]);
 
-            // Cria contatos (se existirem)
             if (!empty($data['contacts'])) {
                 foreach ($data['contacts'] as $contact) {
                     ContactEntitiesModel::create([
@@ -156,7 +147,6 @@ class PartnerController extends Controller
                 }
             }
 
-            // Cria endereços (se existirem)
             if (!empty($data['addresses'])) {
                 foreach ($data['addresses'] as $address) {
                     AddressModel::create([
@@ -185,6 +175,7 @@ class PartnerController extends Controller
                     'name' => $partner->name,
                     'tax_id' => $partner->tax_id,
                     'partner_type' => $partner->partner_type,
+                    'person_type' => $partner->person_type,
                     'status' => $partner->status,
                     'note' => $partner->note,
                     'contacts' => $partner->contacts,
@@ -211,6 +202,8 @@ class PartnerController extends Controller
         }
     }
 
+
+
     public function update(Request $request, $id)
     {
         $data = $request->json()->all();
@@ -227,14 +220,12 @@ class PartnerController extends Controller
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
 
-            // contatos
             'contacts' => 'nullable|array',
             'contacts.*.name' => 'required|string|max:255',
             'contacts.*.note' => 'nullable|string|max:200',
             'contacts.*.type' => 'nullable|string|max:200',
             'contacts.*.contact' => 'nullable|string|max:200',
 
-            // endereços
             'addresses' => 'nullable|array',
             'addresses.*.zip_code' => 'required|string|max:10',
             'addresses.*.street' => 'required|string|max:200',
@@ -265,13 +256,12 @@ class PartnerController extends Controller
             if (!$partner) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Parceiro não encontrado.',
+                    'message' => 'Partner not found.',
                 ], 404);
             }
 
             DB::beginTransaction();
 
-            // 🔹 Atualiza dados principais
             $partner->update([
                 'name' => $data['name'],
                 'tax_id' => $data['tax_id'],
@@ -280,7 +270,6 @@ class PartnerController extends Controller
                 'note' => $data['note'] ?? $partner->note,
             ]);
 
-            // 🔹 Atualiza contatos (remove e recria)
             if (isset($data['contacts'])) {
                 ContactEntitiesModel::where('partner_id', $partner->id)->delete();
 
@@ -298,7 +287,6 @@ class PartnerController extends Controller
                 }
             }
 
-            // 🔹 Atualiza endereços (remove e recria)
             if (isset($data['addresses'])) {
                 AddressModel::where('partner_id', $partner->id)->delete();
 
@@ -322,7 +310,6 @@ class PartnerController extends Controller
 
             DB::commit();
 
-            // 🔹 Recarrega com relacionamentos atualizados
             $partner->load(['contacts', 'addresses']);
 
             return response()->json([
@@ -358,17 +345,17 @@ class PartnerController extends Controller
         }
     }
 
+
+
     public function show($id)
     {
         try {
             $user = auth()->user();
 
-            // 🔹 Carrega o parceiro com contatos e endereços
             $partner = PartnerModel::with(['contacts', 'addresses'])
                 ->where('company_id', $user->company_id)
                 ->findOrFail($id);
 
-            // 🔹 Formata o retorno para ficar igual à index()
             $formatted = [
                 'id' => $partner->id,
                 'name' => $partner->name,
@@ -395,7 +382,7 @@ class PartnerController extends Controller
                         'neighborhood' => $a->neighborhood ?? null,
                         'city' => $a->city,
                         'state' => $a->state,
-                        'country' => $a->country ?? 'Brasil',
+                        'country' => $a->country ?? 'Brazil',
                         'complement' => $a->complement,
                         'note' => $a->note ?? null,
                     ];
@@ -410,7 +397,7 @@ class PartnerController extends Controller
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => 'Parceiro não encontrado.'],
+                'errors' => ['general' => 'Partner not found.'],
             ], 404);
         } catch (\Exception $e) {
             return response()->json([
@@ -420,17 +407,17 @@ class PartnerController extends Controller
         }
     }
 
+
+
     public function destroy($id)
     {
         try {
             $user = auth()->user();
 
-            // 🔹 Busca o parceiro da empresa do usuário
             $partner = PartnerModel::where('company_id', $user->company_id)
                 ->with(['contacts', 'addresses'])
                 ->findOrFail($id);
 
-            // 🔹 Soft delete dos relacionamentos (opcional, caso queira manter integridade)
             if ($partner->contacts) {
                 foreach ($partner->contacts as $contact) {
                     $contact->delete();
@@ -443,12 +430,11 @@ class PartnerController extends Controller
                 }
             }
 
-            // 🔹 Soft delete do parceiro
             $partner->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Parceiro e dados relacionados marcados como excluídos com sucesso!',
+                'message' => 'Partner and related data successfully marked as deleted!',
                 'data' => [
                     'id' => $partner->id,
                     'deleted_at' => $partner->deleted_at,
@@ -458,7 +444,7 @@ class PartnerController extends Controller
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => 'Parceiro não encontrado.'],
+                'errors' => ['general' => 'Partner not found.'],
             ], 404);
 
         } catch (\Exception $e) {
@@ -467,9 +453,8 @@ class PartnerController extends Controller
                 'errors' => ['general' => $e->getMessage()],
             ], 500);
         }
-
-
     }
+
 
 
     public function restore($id)
@@ -483,7 +468,7 @@ class PartnerController extends Controller
             if (!$partner->trashed()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => ['general' => 'Parceiro não está excluído.'],
+                    'errors' => ['general' => 'Partner is not deleted.'],
                 ], 400);
             }
 
@@ -491,14 +476,14 @@ class PartnerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Parceiro restaurado com sucesso!',
+                'message' => 'Partner successfully restored!',
                 'data' => $partner,
             ], 200);
 
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'errors' => ['general' => 'Parceiro não encontrado.'],
+                'errors' => ['general' => 'Partner not found.'],
             ], 404);
         } catch (\Exception $e) {
             return response()->json([
@@ -509,17 +494,3 @@ class PartnerController extends Controller
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

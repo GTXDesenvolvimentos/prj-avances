@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PartnerModel extends Model
@@ -33,6 +33,7 @@ class PartnerModel extends Model
         'name',
         'tax_id',
         'partner_type',
+        'person_type',
         'company_id',
         'status',
         'note'
@@ -57,8 +58,10 @@ class PartnerModel extends Model
         'company_id' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deleted_at' => 'datetime'
+        'deleted_at' => 'datetime',
     ];
+
+
 
     /**
      * The attributes that should be treated as dates.
@@ -165,3 +168,6 @@ class PartnerModel extends Model
         return $this->hasMany(AddressModel::class, 'partner_id');
     }
 }
+
+
+
