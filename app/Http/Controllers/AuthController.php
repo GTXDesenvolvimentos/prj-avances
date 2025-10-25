@@ -47,6 +47,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  *     )
  * )
  * 
+ * 
  * @OA\SecurityScheme(
  *     securityScheme="bearerAuth",
  *     type="http",
