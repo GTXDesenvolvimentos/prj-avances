@@ -96,7 +96,6 @@ class PartnerController extends Controller
     }
 
 
-
     public function store(Request $request)
     {
         $data = $request->json()->all();
@@ -104,7 +103,9 @@ class PartnerController extends Controller
         $validator = Validator::make($data, [
             'name' => 'required|string|min:1|max:255',
             'tax_id' => 'required|string|max:20|unique:partners,tax_id',
-            'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
+            //'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier'])],
+            'partner_type' => 'customer|supplier',
+            'partner_type.*' => 'in:customer,supplier',
             'status' => 'boolean',
             'note' => 'nullable|string|max:1000',
 
