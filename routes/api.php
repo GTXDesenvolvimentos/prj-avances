@@ -69,11 +69,11 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::delete('warehouse/{id}', [WarehouseController::class, 'destroy']);
 
     //Partiner  routes
-    Route::get('partner', [PartnerController::class, 'index']);
-    Route::get('partner/{id}', [PartnerController::class, 'show']);
-    Route::post('partner', [PartnerController::class, 'store']);
-    Route::put('partner/{id}', [PartnerController::class, 'update']);
-    Route::delete('partner/{id}', [PartnerController::class, 'destroy']);
+    Route::get('partners', [PartnerController::class, 'index']);
+    Route::get('partners/{id}', [PartnerController::class, 'show']);
+    Route::post('partners', [PartnerController::class, 'store']);
+    Route::put('partners/{id}', [PartnerController::class, 'update']);
+    Route::delete('partners/{id}', [PartnerController::class, 'destroy']);
     
 
 });
