@@ -23,7 +23,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  * )
  * 
   * @OA\Server(
- *     url=L5_SWAGGER_CONST_HOST,
+ *      url="https://avances.gtxsoftware.com.br/public/api",
  *     description="Ambiente de Produção - Avances API"
  * )
  * 
