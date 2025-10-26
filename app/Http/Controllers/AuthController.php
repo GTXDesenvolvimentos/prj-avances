@@ -21,7 +21,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  * )
  * 
  * @OA\Server(
- *     url="http://127.0.0.1:8000/api",
+ *     url="https://avances.gtxsoftware.com.br/public/api",
  *     description="Servidor Local"
  * )
  * 
@@ -46,6 +46,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  *         @OA\AdditionalProperties(type="array", @OA\Items(type="string"))
  *     )
  * )
+ * 
  * 
  * 
  * @OA\SecurityScheme(
