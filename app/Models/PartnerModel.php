@@ -168,3 +168,8 @@ class PartnerModel extends Model
         return $this->hasMany(AddressModel::class, 'partner_id');
     }
 }
+
+
+
+
+
