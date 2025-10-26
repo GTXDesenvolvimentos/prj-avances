@@ -1,5 +1,7 @@
 <?php
 
+
+
 namespace App\Http\Controllers;
 
 use Illuminate\Database\QueryException;
@@ -12,17 +14,17 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 
 /**
  * @OA\Info(
- *     title="Avances JWT Auth API",
+ *     title="Avances  API",
  *     version="1.0.0",
- *     description="API de autenticação com JWT para sistema Avances",
+ *     description="API para o sistema Avances",
  *     @OA\Contact(
  *         email="seu-email@dominio.com"
  *     )
  * )
  * 
- * @OA\Server(
- *     url="https://avances.gtxsoftware.com.br/public/api",
- *     description="Servidor Local"
+  * @OA\Server(
+ *     url=L5_SWAGGER_CONST_HOST,
+ *     description="Ambiente de Produção - Avances API"
  * )
  * 
  * @OA\Schema(
