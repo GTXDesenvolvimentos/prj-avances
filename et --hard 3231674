@@ -1,0 +1,103 @@
+[33mba0f79e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/backup-develop[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mbackup-main[m[33m, [m[1;32mbackup-develop[m[33m)[m Atualização de order by partnars
+[33ma96bfd0[m fix(cors): add config
+[33mc4eb2cc[m Atualização de order by partnars
+[33m1aa89b0[m Movimentação de estoque
+[33m037d760[m Movimentação de estoque
+[33m31c496a[m Movimentação de estoque
+[33m66e0c73[m Atualização de movimt
+[33m36e6f88[m Movimentação de estoque
+[33m3231674[m Atualização de movimt
+[33m536a6f8[m Parceiros de negocios
+[33m09e4075[m Parceiros de negocios
+[33me18dd22[m Finalizando a criação dos depositos
+[33mdfcc4f9[m Finalizando a criação dos depositos
+[33m574c261[m Finalizando a criação dos depositos
+[33me3df124[m Finalizando a criação dos depositos
+[33md44a0a1[m Finalizando a criação dos depositos
+[33m7f9f1c6[m Finalizando a criação dos depositos
+[33mdfccd30[m Finalizando a criação dos depositos
+[33m047d71d[m Finalizando a criação dos depositos
+[33mc59c861[m Finalizando a criação dos depositos
+[33mcf1fea3[m Finalizando a criação dos depositos
+[33m84bb44e[m Movimentação de estoque
+[33ma9e05bb[m Movimentação de estoque
+[33m64503a9[m Movimentação de estoque
+[33m45541a3[m Movimentação de estoque
+[33m155833b[m Movimentação de estoque
+[33mb143425[m Movimentação de estoque
+[33mde20260[m Movimentação de estoque
+[33m5d49c00[m Movimentação de estoque
+[33m6e0305b[m Movimentação de estoque
+[33m9d1561b[m Movimentação de estoque
+[33mf32e2c6[m Finalizando a criação dos depositos
+[33m3a4fe66[m Finalizando a criação dos depositos
+[33m3a20f02[m Finalizando a criação dos depositos
+[33mab706f9[m Finalizando a criação dos depositos
+[33m8761462[m Finalizando a criação dos depositos
+[33mdadb1bb[m Finalizando a criação dos depositos
+[33mae77afa[m Movimentação de estoque
+[33md319816[m Movimentação de estoque
+[33m65fee81[m Movimentação de estoque
+[33m21f97af[m Finalizando a criação dos depositos
+[33m9a9909e[m Finalizando a criação dos depositos
+[33m150cf2d[m Correção de rotas
+[33m0b6e0ee[m Correção das movimentações
+[33m9ac2b31[m Movimentação de estoque
+[33m18c4a36[m Atualização de movimt
+[33m9c6832a[m teste
+[33m23d7537[m teste
+[33m184e979[m Movimentação de estoque
+[33m144d0bb[m Movimentação de estoque
+[33m4b8235d[m Movimentação de estoque
+[33mf1695be[m Correção da exibição dos produtos deletados
+[33m1ffa6e3[m Correção da exibição dos produtos deletados
+[33m45fdd8b[m Correção de exibição de produtos deletados
+[33mb66920b[m Correção de exibição de produtos deletados
+[33mf5b030e[m Correção de exibição de produtos deletados
+[33mbd62a49[m Correção de exibição de produtos deletados
+[33mfafa0c5[m Correção de exibição de produtos deletados
+[33mdac359f[m Merge branch 'main' of https://github.com/GTXDesenvolvimentos/prj-avances
+[33mc03d7ed[m Atualização
+[33me5a163e[m C!!orreção de deleção lóogi
+[33m712c2f0[m C!!orreção de deleção lóogi
+[33m0d4bbcf[m C!!orreção de deleção lóogi
+[33m2eaf9db[m C!!orreção de deleção lóogi
+[33m6148205[m C!!orreção de deleção lóogi
+[33m829fca6[m C!!orreção de deleção lóogi
+[33m03d0165[m C!!orreção de deleção lóogi
+[33mf9a67af[m C!!orreção de deleção lóogica
+[33mcc71be5[m C!!orreção de deleção lóogica
+[33m4bf9af3[m C!!orreção de deleção lóogica
+[33md40bf5c[m C!!orreção de deleção lóogica
+[33m58e73d5[m Correção de deleção lóogica
+[33mea52bb6[m Correção de deleção lóogica
+[33m67b5b56[m Correção de deleção lóogica
+[33md8f470b[m fix: add unit and category in respose
+[33m1c65466[m Merge pull request #2 from GTXDesenvolvimentos/feature/new-categories-end-points
+[33mec2b3ff[m[33m ([m[1;31morigin/feature/new-categories-end-points[m[33m)[m feat: add products filtera
+[33me4b0839[m Merge branch 'main' into feature/new-categories-end-points
+[33m2fa05d3[m Merge pull request #3 from GTXDesenvolvimentos/feacture/categories
+[33mdee8a3e[m[33m ([m[1;32mfeacture/categories[m[33m)[m Correção de usuarioss
+[33mb079936[m all
+[33m851c256[m feat: add product and units eps
+[33md36075c[m feat: categories end points
+[33m9bef878[m Correção de usuarioss
+[33ma9393ac[m Unidade de medidas
+[33m09d792b[m Categorias
+[33m7664749[m feat: finalização  de categoria
+[33m75b4c73[m feat: criado ep de categoria
+[33mc5fc129[m feat: criado ep de categoria
+[33m27cf362[m feat: criado ep de categoria
+[33m6b8a708[m feat: criado ep de categoria
+[33m5e57d87[m Atualizacao de produtos 001
+[33mdeaed2a[m Atualizacao de produtos
+[33m21b3012[m Atualizacao de produtos
+[33m89f291b[m Atualizacao de produtos
+[33mabcb4f5[m Teste de nova pasta
+[33mb76b02c[m Teste de nova pasta
+[33m1e8b8cd[m Teste001
+[33md25ad50[m Merge pull request #1 from GTXDesenvolvimentos/feature/product-crud
+[33me4b5630[m[33m ([m[1;31morigin/feature/product-crud[m[33m)[m Criando ProductModel com CRUD
+[33m9eabe6c[m Criando ProductModel com CRUD
+[33m55306fd[m Teste de envio
+[33m05758c2[m Criação do API
