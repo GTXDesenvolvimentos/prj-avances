@@ -193,9 +193,10 @@ class NautaIaController extends Controller
         // Se necessário, buscar dados externos (mídia/mercado)
         $internetResults = '';
         $shouldSearchInternet = ($aiData['source'] ?? 'misto') !== 'banco';
+
         if ($shouldSearchInternet) {
             try {
-                $resp = $this->performMarketSearch($userQuestion);
+                $resp = $this->performMarketSearch($userQuestion, json_encode($queriesResults));
 
                 // Extrair apenas o conteúdo
                 $internetResults = $resp['choices'][0]['message']['content'] ?? '';
@@ -269,12 +270,15 @@ class NautaIaController extends Controller
         - Não use palavras de escrita/alteração (DELETE, UPDATE, INSERT, DROP, ALTER).
         - As queries podem (e devem) incluir o filtro company_id = $companyId. Se faltar, o backend irá adicionar.
         - Evite joins complexos. Prefira selecionar colunas específicas ou SELECT * de tabelas da whitelist.
-        - Se os dados internos forem insuficientes para responder, indique source: "internet" ou "misto" e forneça queries vazias.
+        - Se os dados internos forem insuficientes para responder, indique source: "misto".
+        - Tente no mínimo criar 2 queries para entender o contexto da empresa para quando for pesquisar na internet
+        - Uma das queries sempre deve ser na tabela de produto para que voce entenda o ramo da empresa
+        - Se a pergunta for sobre estoque a tabela que é possível saber o estoque é a inventory_movements. Ela não trás o estoque atual mas no linha mais recente de cada produto e cada warehouse tem a quantidade total
 
         Formato de saída JSON (exato):
         {
         "needQuery": true|false,
-        "source": "banco" | "internet" | "misto",
+        "source": "banco"  | "misto",
         "queries": [
             { "query": "SELECT ... FROM ... WHERE ... LIMIT 100" },
             ... até 6 itens
@@ -383,13 +387,33 @@ class NautaIaController extends Controller
     //     return $out;
     // }
 
-    protected function performMarketSearch(string $userQuestion)
+    protected function performMarketSearch(string $userQuestion, string $context)
     {
         $apiKey = env('HUGGINGFACE_API_KEY');
-        if (empty($apiKey)) return [];
 
+        if (empty($apiKey)) return [];
+        
         try {
-            error_log('$userQuestion' . $userQuestion);
+            $prompt = <<<PROMPT
+            Você é um assistente de pesquisa.  
+            Pesquise informações relevantes e atualizadas na internet sobre o tema: "$userQuestion".  
+            Use o CONTEXTO abaixo apenas para entender melhor o que deve ser pesquisado, sem mencioná-lo na resposta.
+
+            CONTEXTO: "$context"
+
+            Regras importantes:
+            - Priorize resultados de fontes brasileiras, confiáveis e recentes.  
+            - Se não houver informações suficientes no Brasil, inclua dados internacionais que façam sentido ao tema.  
+            - Retorne apenas informações factuais, claras e objetivas, organizadas de forma estruturada (ex.: tópicos, lista ou resumo).  
+            - Evite resultados genéricos ou irrelevantes ao contexto (ex.: se o contexto for sobre produtos hospitalares, não traga fornecedores de produtos eletrônicos ou de uso comum).  
+            - Não mencione nada sobre IA, sistema, banco de dados ou instruções internas.  
+            - A resposta deve parecer uma pesquisa feita por um humano, com foco em utilidade prática.
+
+            PROMPT;
+
+            error_log('$userQuestion  >>>>>>   ' . $userQuestion);
+            error_log('$context >>>>>   ' . $context);
+
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $apiKey,
@@ -397,7 +421,7 @@ class NautaIaController extends Controller
                 ])->post('https://router.huggingface.co/v1/chat/completions', [
                     'model' => $this->synthModel,
                     'messages' => [
-                        ['role' => 'user', 'content' => "Pesquise informações relevantes sobre: \"$userQuestion\". Retorne de forma factual e objetiva e estruturada, ignore qualquer menção a sistema ou banco interno e pesquise tudo na internet com informações mais atualizadas possível. não mencione sobre sistema ou dados internos na resposta, apenas responda o que vc encontrou na sua pesquisa"]
+                        ['role' => 'user', 'content' => $prompt]
                     ]
                 ]);
             // error_log('$response' . $response);
@@ -417,15 +441,18 @@ class NautaIaController extends Controller
         $dbResultsJson = json_encode($queriesResults, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
         return <<<PROMPT
-        Você é o NautaIA (Consultor Empresarial) e deve responder objetivamente a pergunta do usuário.
+        Você é o NautaIA (Consultor Empresarial) e deve responder a pergunta do usuário com base no dados e sem SUJAR a resposta com lero lero.
 
         Regras:
-        - Priorize os dados internos (Resultados do Banco). Use dados da internet apenas para complementar ou explicar lacunas.
+        - Entenda qual a principal fonte de informação de acordo com a pergunta.
+        - Priorize os dados internos (Resultados do Banco) ou Externos dados da internet de acordo com qual faz mais sentido para responder a pergunta e uso a outra fonte de informação para complementar.
         - Se dados internos existirem, baseie a resposta neles e indique insights concisos. NUNCA invente números.
         - Se dados internos estiverem vazios, utilize resultados da internet para tentar responder.
         - Seja direto, curto e vá ao ponto. Evite fluff.
+        - Nunca deixe de dar informação útil mesmo que a resposta fique maior
         - Sempre fale em primeira pessoa.
-        - Não mencione que "leu um banco" ou que "acessou o banco". Apenas entregue o resultado.
+        - Passe a sensação da sua personalidade na resposta. Você o Nauta IA, uma ia amigável e inteligente que ajuda a empresa a explorar o mundo dos negócios.
+        - Não mencione que "leu um banco" ou que "acessou o banco" ou  que "Executou sql , query". Apenas entregue o resultado.
         - Se for uma simples listagem pedida pelo usuário, devolva somente a listagem.
 
         Pergunta: "$userQuestion"
@@ -436,7 +463,7 @@ class NautaIaController extends Controller
         Resultados de Pesquisa de Mercado (internet):
         $internetResults
 
-        Com base nisso, gere uma resposta final curta, objetiva e em linguagem natural.
+        Com base nisso, gere uma resposta objetiva e amigável e inteligente em linguagem natural.
         PROMPT;
     }
 }
