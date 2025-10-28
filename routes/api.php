@@ -7,6 +7,7 @@ use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\NautaIaController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductUnitsController;
@@ -74,6 +75,8 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::post('partners', [PartnerController::class, 'store']);
     Route::put('partners/{id}', [PartnerController::class, 'update']);
     Route::delete('partners/{id}', [PartnerController::class, 'destroy']);
-    
 
+
+    // Nauta IA routes
+    Route::post('chat', [NautaIaController::class, 'chat']);
 });
