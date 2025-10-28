@@ -457,40 +457,4 @@ class PartnerController extends Controller
 
 
 
-    public function restore($id)
-    {
-        try {
-            $user = auth()->user();
-            $partner = PartnerModel::withTrashed()
-                ->where('company_id', $user->company_id)
-                ->findOrFail($id);
-
-            if (!$partner->trashed()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => ['general' => 'Partner is not deleted.'],
-                ], 400);
-            }
-
-            $partner->restore();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Partner successfully restored!',
-                'data' => $partner,
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Partner not found.'],
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
-    }
-
 }

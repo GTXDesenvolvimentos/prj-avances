@@ -15,12 +15,13 @@ class MovementTypeModel extends Model
 
     // Campos que podem ser preenchidos em massa
     protected $fillable = [
-        'id',
-        'name',
+        'movement',
         'description',
         'type',
         'company_id',
-        'status',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     // Timestamps automáticos

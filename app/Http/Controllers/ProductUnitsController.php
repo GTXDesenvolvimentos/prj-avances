@@ -2,28 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Traits\ApiResponser;
 use App\Models\ProductUnitsModel;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ProductUnitsController extends Controller
 {
+    use ApiResponser;
     public function index(Request $request)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request) {
+
             $user = $request->user();
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
 
-            // Consulta base (carrega também company se existir relação)
+            // Consulta base (com relação company se existir)
             $query = ProductUnitsModel::with([
                 'company' => function ($q) {
                     $q->withTrashed();
                 }
             ])->where('company_id', $user->company_id);
 
-            // Filtro de busca (por símbolo ou descrição)
+            // Filtro de busca
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('symbol', 'LIKE', "%{$search}%")
@@ -37,162 +41,147 @@ class ProductUnitsController extends Controller
                 $query->where('status', $request->query('status'));
             }
 
-            // Ordenação (mais recentes primeiro)
+            // Ordenação
             $query->orderBy('created_at', 'desc');
 
             // Paginação
             $units = $query->paginate($limit);
 
-            return response()->json([
-                'success' => true,
-                'data' => $units->items(),
-                'pagination' => [
-                    'page' => $units->currentPage(),
-                    'limit' => $units->perPage(),
-                    'page_count' => $units->lastPage(),
-                    'total_count' => $units->total(),
-                ],
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error while listing product units.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+            // ✅ Retorno padronizado com paginação
+            return $this->paginatedResponse($units, 'Product units retrieved successfully');
+        });
     }
 
+    /** CRIAÇÃO DE UNIDADE DE MEDIDA */
     public function store(Request $request)
     {
-        $data = $request->all();
-        $user = $request->user();
-
-        $validator = Validator::make($data, [
-            'symbol' => 'required|string|min:1',
-            'description' => 'required|string|min:4',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        try {
-            $unit = ProductUnitsModel::create([
-                'symbol' => $data['symbol'],
-                'description' => $data['description'],
-                'company_id' => $user->company_id,
+        return $this->apiTryCatch(function () use ($request) {
+            // Dados do usuário autenticado
+            $user = $request->user();
+            $data = $request->all();
+            $data['company_id'] = $user->company_id;
+            // Validação dos dados
+            $validator = Validator::make($data, [
+                'symbol' => 'required|string|min:1|unique:product_units,symbol,NULL,NULL,company_id,' . $user->company_id,
+                'description' => 'required|string|min:4',
+                'company_id' => 'required|integer',
             ]);
-
-            return response()->json([
-                'success' => true,
-                'data' => $unit
-            ], 201);
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['database' => $e->getMessage()]
-            ], 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()]
-            ], 500);
-        }
+            // Falha na validação
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
+            }
+            // Criação da unidade de medida
+            $data = [
+                'symbol' => $request->symbol,
+                'description' => $request->description,
+                'company_id' => $user->company_id,
+                "created_by" => $user->id,
+                "updated_by" => $user->id
+            ];
+            // Salva no banco
+            $unit = ProductUnitsModel::create($data);
+            return $this->createdResponse($unit, 'Product unit created successfully');
+        });
     }
 
-    public function show($id)
+    /** RETORNO PARA ALTERAÇÃO */
+    public function show(Request $request, $id)
     {
-        try {
-            $unit = ProductUnitsModel::findOrFail($id);
+        return $this->apiTryCatch(function () use ($request, $id) {
 
-            return response()->json([
-                'success' => true,
-                'data' => $unit
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()]
-            ], 500);
-        }
+            $user = $request->user(); // usuário autenticado
+
+            $unit = ProductUnitsModel::where('id', $id)
+                ->where('company_id', $user->company_id)
+                ->first();
+
+            if (!$unit) {
+                return $this->errorResponse(
+                    'Product unit not found',
+                    'NOT_FOUND',
+                    404
+                );
+            }
+
+            return $this->successResponse(
+                $unit,
+                'Product unit retrieved successfully'
+            );
+        });
     }
 
-
+    /** ALTERAÇÃO DA UNIDADE DE MEDIDA */
     public function update(Request $request, $id)
     {
-        $data = $request->all();
-        $validator = Validator::make($data, [
-            'symbol' => 'sometimes|required|string|min:1',
-            'description' => 'sometimes|required|string|min:4',
-        ]);
+        return $this->apiTryCatch(function () use ($request, $id) {
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+            // Usuário autenticado
+            $user = $request->user();
+            $data = $request->all();
+            $data['company_id'] = $user->company_id;
 
-        try {
-            $unit = ProductUnitsModel::findOrFail($id);
+            // Primeiro buscamos garantindo que pertence à mesma empresa
+            $unit = ProductUnitsModel::where('id', $id)
+                ->where('company_id', $user->company_id)
+                ->first();
 
+            if (!$unit) {
+                return $this->errorResponse(
+                    'Product unit not found or not accessible for this user.',
+                    'NOT_FOUND',
+                    404
+                );
+            }
+
+            $validator = Validator::make($data, [
+                'symbol' => 'required|string|min:1|unique:product_units,symbol,NULL,NULL,company_id,' . $user->company_id,
+                'description' => 'required|string|min:4',
+                'company_id' => 'required|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
+            }
+
+            // Atualização
             $unit->update([
                 'symbol' => $data['symbol'] ?? $unit->symbol,
                 'description' => $data['description'] ?? $unit->description,
+                'updated_by' => $user->id
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Unidade atualizada com sucesso!',
-                'data' => $unit
-            ], 200);
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['database' => $e->getMessage()]
-            ], 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()]
-            ], 500);
-        }
+            return $this->updatedResponse($unit, 'Product unit updated successfully');
+        });
     }
 
 
-    public function destroy($id)
+    /** EXCLUSÃO DA UNIDADE DE MEDIDA */
+    public function destroy(Request $request, $id)
     {
-        try {
-            // Busca a unidade (lança 404 se não existir)
-            $unit = ProductUnitsModel::findOrFail($id);
+        return $this->apiTryCatch(function () use ($request, $id) {
+
+            $user = $request->user();
+
+            // Busca a unidade filtrando pelo usuário/empresa
+            $unit = ProductUnitsModel::where('id', $id)
+                ->where('company_id', $user->company_id)
+                ->first();
+
+            if (!$unit) {
+                return $this->errorResponse(
+                    'Product unit not found or not accessible for this user.',
+                    'NOT_FOUND',
+                    404
+                );
+            }
 
             // Soft delete
             $unit->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Unidade marcada como excluída com sucesso!',
-                'data' => [
-                    'id' => $unit->id,
-                    'deleted_at' => $unit->deleted_at,
-                ],
-            ], 200);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Unidade não encontrada.'],
-            ], 404);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
+            // Retorno padronizado de delete
+            return $this->deletedResponse('Product unit deleted successfully', ['id' => $unit->id, 'deleted_at' => $unit->deleted_at]);
+        });
     }
+
 
 }

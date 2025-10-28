@@ -30,6 +30,7 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     // Categories routes
     Route::get('categories', [ProductCategoryController::class, 'index']);
     Route::post('categories', [ProductCategoryController::class, 'store']);
+    Route::get('categories/{id}', [ProductCategoryController::class, 'show']);
     Route::put('categories/{id}', [ProductCategoryController::class, 'update']);
     Route::delete('categories/{id}', [ProductCategoryController::class, 'destroy']);
 

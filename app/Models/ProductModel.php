@@ -25,7 +25,10 @@ class ProductModel extends Model
         'rental_price',
         'is_dynamic_sale_price',
         'is_dynamic_rental_price',
-        'status'
+        'status',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
     protected $casts = [
         'is_dynamic_sale_price' => 'boolean',
