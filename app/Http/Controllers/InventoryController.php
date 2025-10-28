@@ -52,7 +52,7 @@ use ApiResponser;
 
         if (!empty($search)) {
             $query->whereHas('product', function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
+                $q->where('product_name', 'LIKE', "%{$search}%")
                   ->orWhere('description', 'LIKE', "%{$search}%");
             });
         }
