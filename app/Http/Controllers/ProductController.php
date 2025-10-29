@@ -133,6 +133,13 @@ class ProductController extends Controller
                     Rule::exists('product_categories', 'id')
                         ->where(fn($q) => $q->where('company_id', $user->company_id)),
                 ],
+                'name' => [
+                    'required',
+                    'string',
+                    'min:2',
+                    Rule::unique('products', 'name')
+                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
+                ],
                 'product_code' => [
                     'nullable',
                     'string',
@@ -166,6 +173,7 @@ class ProductController extends Controller
                 'category_id' => $data['category_id'],
                 'company_id' => $user->company_id,
                 'product_code' => $data['product_code'] ?? null,
+                'name' => $data['name'],
                 'description' => $data['description'] ?? null,
                 // Salva como JSON (recomendado) ou string separada
                 'availability' => $availability,
