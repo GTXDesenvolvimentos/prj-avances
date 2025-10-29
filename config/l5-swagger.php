@@ -44,7 +44,8 @@ return [
                  * MODIFICADO: Agora aponta apenas para a AuthController
                  */
                 'annotations' => [
-                    base_path('app/Http/Controllers/AuthController.php'),
+                    base_path('app/Http/Controllers'),
+                    base_path('app/Models'),
                 ],
             ],
             'info' => [

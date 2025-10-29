@@ -14,6 +14,9 @@ use App\Http\Controllers\ProductUnitsController;
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('product-units', ProductUnitsController::class);
+});
 
 
 Route::group(['middleware' => ['jwt.auth']], function () {
@@ -75,6 +78,6 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::post('partners', [PartnerController::class, 'store']);
     Route::put('partners/{id}', [PartnerController::class, 'update']);
     Route::delete('partners/{id}', [PartnerController::class, 'destroy']);
-    
+
 
 });
