@@ -17,6 +17,7 @@ class ProductModel extends Model
         'unit_id',
         'company_id',
         'product_code',
+        'product_name',
         'description',
         'availability',
         'average_cost',
