@@ -166,7 +166,6 @@ class ProductController extends Controller
                 'category_id' => $data['category_id'],
                 'company_id' => $user->company_id,
                 'product_code' => $data['product_code'] ?? null,
-                'name' => $data['name'],
                 'description' => $data['description'] ?? null,
                 // Salva como JSON (recomendado) ou string separada
                 'availability' => $availability,
