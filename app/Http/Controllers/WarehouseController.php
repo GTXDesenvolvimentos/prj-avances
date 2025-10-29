@@ -53,7 +53,6 @@ class WarehouseController extends Controller
     }
 
     
-
     /** CRIAÇÃO DE DEPÓSITOS */
     public function store(Request $request)
     {
