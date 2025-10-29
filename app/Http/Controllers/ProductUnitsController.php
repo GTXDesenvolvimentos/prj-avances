@@ -1,4 +1,11 @@
 <?php
+/**
+ * @OA\Tag(
+ *     name="Product Units",
+ *     description="Endpoints de Unidades de Medida"
+ * )
+ */
+
 
 namespace App\Http\Controllers;
 

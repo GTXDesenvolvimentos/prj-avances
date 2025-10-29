@@ -1,4 +1,18 @@
 <?php
+/**
+ * @OA\Schema(
+ *     schema="ProductUnit",
+ *     type="object",
+ *     title="Product Unit",
+ *     description="Representação de uma unidade de medida",
+ *     @OA\Property(property="id", type="integer", example=1),
+ *     @OA\Property(property="symbol", type="string", example="kg"),
+ *     @OA\Property(property="description", type="string", example="Kilograma"),
+ *     @OA\Property(property="company_id", type="integer", example=10),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time")
+ * )
+ */
 
 namespace App\Models;
 
