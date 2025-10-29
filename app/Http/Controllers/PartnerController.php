@@ -19,6 +19,7 @@ class PartnerController extends Controller
 
     public function index(Request $request)
     {
+        
         return $this->apiTryCatch(function () use ($request) {
             $user = $request->user();
             $companyId = $user->company_id;
