@@ -1,16 +1,16 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "Avances JWT Auth API",
-        "description": "API de autenticação com JWT para sistema Avances",
+        "title": "Avances API - Integração de ERP",
+        "description": "API de integração para sistema Avances",
         "contact": {
-            "email": "seu-email@dominio.com"
+            "email": "suporte@avances.com.br"
         },
         "version": "1.0.0"
     },
     "servers": [
         {
-            "url": "http://127.0.0.1:8000/api",
+            "url": "https://api.avances.com.br/api/",
             "description": "Servidor Local"
         }
     ],
