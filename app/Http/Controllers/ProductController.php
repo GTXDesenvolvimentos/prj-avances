@@ -133,13 +133,6 @@ class ProductController extends Controller
                     Rule::exists('product_categories', 'id')
                         ->where(fn($q) => $q->where('company_id', $user->company_id)),
                 ],
-                'name' => [
-                    'required',
-                    'string',
-                    'min:2',
-                    Rule::unique('products', 'name')
-                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
-                ],
                 'product_code' => [
                     'nullable',
                     'string',
