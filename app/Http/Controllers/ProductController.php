@@ -166,7 +166,7 @@ class ProductController extends Controller
             if (is_array($availability)) {
                 $availability = implode(',', $availability);
             }
-
+            
             // 🔹 Monta os dados do produto
             $productData = [
                 'unit_id' => $data['unit_id'],
