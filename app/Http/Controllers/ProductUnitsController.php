@@ -12,6 +12,43 @@ use Illuminate\Validation\Rule;
 class ProductUnitsController extends Controller
 {
     use ApiResponser;
+
+    /**
+     * @OA\Get(
+     *     path="/api/product-units",
+     *     tags={"Product Units"},
+     *     summary="Listar unidades de medida",
+     *     description="Retorna a lista paginada de unidades de medida da empresa do usuário autenticado.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Número de registros por página (default: 25)",
+     *         required=false,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="search",
+     *         in="query",
+     *         description="Busca por símbolo ou descrição",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="status",
+     *         in="query",
+     *         description="Filtra pelo status da unidade",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Lista de unidades recuperada com sucesso"
+     *     ),
+     *     @OA\Response(response=401, description="Não autorizado"),
+     *     @OA\Response(response=500, description="Erro interno do servidor")
+     * )
+     */
     public function index(Request $request)
     {
         return $this->apiTryCatch(function () use ($request) {
@@ -20,14 +57,12 @@ class ProductUnitsController extends Controller
             $limit = (int) $request->query('limit', 25);
             $search = trim($request->query('search', ''), '"\'');
 
-            // Consulta base (com relação company se existir)
             $query = ProductUnitsModel::with([
                 'company' => function ($q) {
                     $q->withTrashed();
                 }
             ])->where('company_id', $user->company_id);
 
-            // Filtro de busca
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('symbol', 'LIKE', "%{$search}%")
@@ -36,41 +71,54 @@ class ProductUnitsController extends Controller
                 });
             }
 
-            // Filtro opcional por status
             if ($request->filled('status')) {
                 $query->where('status', $request->query('status'));
             }
 
-            // Ordenação
             $query->orderBy('created_at', 'desc');
-
-            // Paginação
             $units = $query->paginate($limit);
 
-            // ✅ Retorno padronizado com paginação
             return $this->paginatedResponse($units, 'Product units retrieved successfully');
         });
     }
 
-    /** CRIAÇÃO DE UNIDADE DE MEDIDA */
+    /**
+     * @OA\Post(
+     *     path="/api/product-units",
+     *     tags={"Product Units"},
+     *     summary="Criar uma nova unidade de medida",
+     *     description="Cria uma nova unidade de medida associada à empresa do usuário autenticado.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"symbol","description"},
+     *             @OA\Property(property="symbol", type="string", example="kg"),
+     *             @OA\Property(property="description", type="string", example="Kilograma")
+     *         )
+     *     ),
+     *     @OA\Response(response=201, description="Unidade criada com sucesso"),
+     *     @OA\Response(response=400, description="Erro de validação"),
+     *     @OA\Response(response=401, description="Não autorizado")
+     * )
+     */
     public function store(Request $request)
     {
         return $this->apiTryCatch(function () use ($request) {
-            // Dados do usuário autenticado
             $user = $request->user();
             $data = $request->all();
             $data['company_id'] = $user->company_id;
-            // Validação dos dados
+
             $validator = Validator::make($data, [
                 'symbol' => 'required|string|min:1|unique:product_units,symbol,NULL,NULL,company_id,' . $user->company_id,
                 'description' => 'required|string|min:4',
                 'company_id' => 'required|integer',
             ]);
-            // Falha na validação
+
             if ($validator->fails()) {
                 return $this->validationErrorResponse($validator->errors()->toArray());
             }
-            // Criação da unidade de medida
+
             $data = [
                 'symbol' => $request->symbol,
                 'description' => $request->description,
@@ -78,18 +126,36 @@ class ProductUnitsController extends Controller
                 "created_by" => $user->id,
                 "updated_by" => $user->id
             ];
-            // Salva no banco
+
             $unit = ProductUnitsModel::create($data);
             return $this->createdResponse($unit, 'Product unit created successfully');
         });
     }
 
-    /** RETORNO PARA ALTERAÇÃO */
+    /**
+     * @OA\Get(
+     *     path="/api/product-units/{id}",
+     *     tags={"Product Units"},
+     *     summary="Visualizar detalhes de uma unidade de medida",
+     *     description="Retorna os dados de uma unidade de medida específica.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID da unidade de medida",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(response=200, description="Unidade recuperada com sucesso"),
+     *     @OA\Response(response=404, description="Unidade não encontrada"),
+     *     @OA\Response(response=401, description="Não autorizado")
+     * )
+     */
     public function show(Request $request, $id)
     {
         return $this->apiTryCatch(function () use ($request, $id) {
 
-            $user = $request->user(); // usuário autenticado
+            $user = $request->user();
 
             $unit = ProductUnitsModel::where('id', $id)
                 ->where('company_id', $user->company_id)
@@ -110,17 +176,42 @@ class ProductUnitsController extends Controller
         });
     }
 
-    /** ALTERAÇÃO DA UNIDADE DE MEDIDA */
+    /**
+     * @OA\Put(
+     *     path="/api/product-units/{id}",
+     *     tags={"Product Units"},
+     *     summary="Atualizar unidade de medida",
+     *     description="Atualiza uma unidade de medida existente.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID da unidade de medida",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"symbol","description"},
+     *             @OA\Property(property="symbol", type="string", example="L"),
+     *             @OA\Property(property="description", type="string", example="Litro")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Unidade atualizada com sucesso"),
+     *     @OA\Response(response=404, description="Unidade não encontrada"),
+     *     @OA\Response(response=400, description="Erro de validação"),
+     *     @OA\Response(response=401, description="Não autorizado")
+     * )
+     */
     public function update(Request $request, $id)
     {
         return $this->apiTryCatch(function () use ($request, $id) {
 
-            // Usuário autenticado
             $user = $request->user();
             $data = $request->all();
             $data['company_id'] = $user->company_id;
 
-            // Primeiro buscamos garantindo que pertence à mesma empresa
             $unit = ProductUnitsModel::where('id', $id)
                 ->where('company_id', $user->company_id)
                 ->first();
@@ -143,7 +234,6 @@ class ProductUnitsController extends Controller
                 return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
-            // Atualização
             $unit->update([
                 'symbol' => $data['symbol'] ?? $unit->symbol,
                 'description' => $data['description'] ?? $unit->description,
@@ -154,15 +244,31 @@ class ProductUnitsController extends Controller
         });
     }
 
-
-    /** EXCLUSÃO DA UNIDADE DE MEDIDA */
+    /**
+     * @OA\Delete(
+     *     path="/api/product-units/{id}",
+     *     tags={"Product Units"},
+     *     summary="Excluir unidade de medida",
+     *     description="Remove (soft delete) uma unidade de medida da empresa do usuário autenticado.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID da unidade de medida",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(response=200, description="Unidade excluída com sucesso"),
+     *     @OA\Response(response=404, description="Unidade não encontrada"),
+     *     @OA\Response(response=401, description="Não autorizado")
+     * )
+     */
     public function destroy(Request $request, $id)
     {
         return $this->apiTryCatch(function () use ($request, $id) {
 
             $user = $request->user();
 
-            // Busca a unidade filtrando pelo usuário/empresa
             $unit = ProductUnitsModel::where('id', $id)
                 ->where('company_id', $user->company_id)
                 ->first();
@@ -175,13 +281,12 @@ class ProductUnitsController extends Controller
                 );
             }
 
-            // Soft delete
             $unit->delete();
 
-            // Retorno padronizado de delete
-            return $this->deletedResponse('Product unit deleted successfully', ['id' => $unit->id, 'deleted_at' => $unit->deleted_at]);
+            return $this->deletedResponse('Product unit deleted successfully', [
+                'id' => $unit->id,
+                'deleted_at' => $unit->deleted_at
+            ]);
         });
     }
-
-
 }

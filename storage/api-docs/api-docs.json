@@ -1,17 +1,17 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "Avances API - Integração de ERP",
-        "description": "API de integração para sistema Avances",
+        "title": "Avances  API",
+        "description": "API para o sistema Avances",
         "contact": {
-            "email": "suporte@avances.com.br"
+            "email": "seu-email@dominio.com"
         },
         "version": "1.0.0"
     },
     "servers": [
         {
             "url": "https://api.avances.com.br/api/",
-            "description": "Servidor Local"
+            "description": "Ambiente de Produção - Avances API"
         }
     ],
     "paths": {
