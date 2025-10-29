@@ -52,6 +52,7 @@ class WarehouseController extends Controller
         return $this->paginatedResponse($warehouses, 'Product categories retrieved successfully');
     }
 
+    
 
     /** CRIAÇÃO DE DEPÓSITOS */
     public function store(Request $request)
