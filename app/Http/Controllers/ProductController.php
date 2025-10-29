@@ -158,7 +158,7 @@ class ProductController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->validationErrorResponse($validator->errors()->toArray());
+               // return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
             $availability = $request->availability;
