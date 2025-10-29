@@ -34,7 +34,7 @@ class ProductController extends Controller
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('product_code', 'LIKE', "%{$search}%")
-                        ->orWhere('name', 'LIKE', "%{$search}%")
+                        ->orWhere('product_name', 'LIKE', "%{$search}%")
                         ->orWhere('description', 'LIKE', "%{$search}%");
                 });
             }
@@ -133,11 +133,11 @@ class ProductController extends Controller
                     Rule::exists('product_categories', 'id')
                         ->where(fn($q) => $q->where('company_id', $user->company_id)),
                 ],
-                'name' => [
+                'product_name' => [
                     'required',
                     'string',
                     'min:2',
-                    Rule::unique('products', 'name')
+                    Rule::unique('products', 'product_name')
                         ->where(fn($q) => $q->where('company_id', $user->company_id)),
                 ],
                 'product_code' => [
@@ -173,7 +173,7 @@ class ProductController extends Controller
                 'category_id' => $data['category_id'],
                 'company_id' => $user->company_id,
                 'product_code' => $data['product_code'] ?? null,
-                'name' => $data['name'],
+                'product_name' => $data['product_name'],
                 'description' => $data['description'] ?? null,
                 // Salva como JSON (recomendado) ou string separada
                 'availability' => $availability,
@@ -218,7 +218,7 @@ class ProductController extends Controller
             $validator = Validator::make($data, [
                 'unit_id' => 'sometimes|required|integer|exists:product_units,id',
                 'category_id' => 'sometimes|required|integer|exists:product_categories,id',
-                'name' => [
+                'product_name' => [
                     'sometimes',
                     'required',
                     'string',
@@ -249,7 +249,7 @@ class ProductController extends Controller
             $updateData = [
                 'unit_id' => $data['unit_id'] ?? $product->unit_id,
                 'category_id' => $data['category_id'] ?? $product->category_id,
-                'name' => $data['name'] ?? $product->name,
+                'product_name' => $data['product_name'] ?? $product->product_name,
                 'product_code' => $data['product_code'] ?? $product->product_code,
                 'description' => $data['description'] ?? $product->description,
                 'average_cost' => $data['average_cost'] ?? $product->average_cost,
