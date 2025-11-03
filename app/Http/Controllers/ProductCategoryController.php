@@ -26,7 +26,7 @@ class ProductCategoryController extends Controller
             // Filtro de busca
             if ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
+                    $q->where('category', 'LIKE', "%{$search}%")
                         ->orWhere('description', 'LIKE', "%{$search}%");
                 });
             }
