@@ -1,0 +1,28 @@
+name: Deploy Staging to cPanel
+
+# Dispara sempre que houver push na branch master
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # :one: Puxar o código
+      - name: Checkout repository
+        uses: actions/checkout@v4
+  
+      # :two: Deploy via FTP(S) para subdomínio
+      - name: Deploy to Staging
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: /
+          server-dir: api.staging.avances.com.br/
+          protocol: ftps
+          dangerous-clean-slate: false
