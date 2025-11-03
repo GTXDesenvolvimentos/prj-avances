@@ -7,7 +7,6 @@ return [
             'api' => [
                 'title' => 'Avances API Documentation',
             ],
-
             'routes' => [
                 /*
                  * Route for accessing api documentation interface
@@ -21,8 +20,8 @@ return [
                 'use_absolute_path' => env('L5_SWAGGER_USE_ABSOLUTE_PATH', true),
 
                 /*
-                * Edit to set path where swagger ui assets should be stored
-                */
+                 * Edit to set path where swagger ui assets should be stored
+                 */
                 'swagger_ui_assets_path' => env('L5_SWAGGER_UI_ASSETS_PATH', 'vendor/swagger-api/swagger-ui/dist/'),
 
                 /*
@@ -45,7 +44,27 @@ return [
                  * MODIFICADO: Agora aponta apenas para a AuthController
                  */
                 'annotations' => [
-                    base_path('app/Http/Controllers/AuthController.php'),
+                    base_path('app/Http/Controllers'),
+                    base_path('app/Models'),
+                ],
+            ],
+            'info' => [
+                'title' => 'Avances API',
+                'description' => 'API para o sistema Avances',
+                'version' => '1.0.0',
+                'contact' => [
+                    'email' => 'seu-email@dominio.com',
+                ],
+            ],
+
+            'servers' => [
+                [
+                    'url' => 'https://api.avances.com.br/api/',
+                    'description' => 'Ambiente de Produção - Avances API',
+                ],
+                [
+                    'url' => 'http://localhost:8000/api/',
+                    'description' => 'Ambiente de Desenvolvimento',
                 ],
             ],
         ],
@@ -109,7 +128,7 @@ return [
              * @link https://zircote.github.io/swagger-php/reference/processors.html
              */
             'default_processors_configuration' => [
-            // Configurações de processadores podem ficar aqui
+                // Configurações de processadores podem ficar aqui
             ],
 
             /**
@@ -165,7 +184,7 @@ return [
 
         /*
          * API security definitions. Will be generated into documentation file.
-        */
+         */
         'securityDefinitions' => [
             'securitySchemes' => [
                 /*

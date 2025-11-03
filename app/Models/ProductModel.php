@@ -1,4 +1,18 @@
 <?php
+/**
+ * @OA\Schema(
+ *     schema="ProductUnit",
+ *     type="object",
+ *     title="Product Unit",
+ *     description="Representação de uma unidade de medida",
+ *     @OA\Property(property="id", type="integer", example=1),
+ *     @OA\Property(property="symbol", type="string", example="kg"),
+ *     @OA\Property(property="description", type="string", example="Kilograma"),
+ *     @OA\Property(property="company_id", type="integer", example=10),
+ *     @OA\Property(property="created_at", type="string", format="date-time"),
+ *     @OA\Property(property="updated_at", type="string", format="date-time")
+ * )
+ */
 
 namespace App\Models;
 
@@ -17,7 +31,7 @@ class ProductModel extends Model
         'unit_id',
         'company_id',
         'product_code',
-        'name',
+        'product_name',
         'description',
         'availability',
         'average_cost',
@@ -25,7 +39,10 @@ class ProductModel extends Model
         'rental_price',
         'is_dynamic_sale_price',
         'is_dynamic_rental_price',
-        'status'
+        'status',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
     protected $casts = [
         'is_dynamic_sale_price' => 'boolean',

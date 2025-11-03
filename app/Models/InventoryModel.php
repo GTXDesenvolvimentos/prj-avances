@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\ProductModel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -13,13 +12,10 @@ class InventoryModel extends Model
 
     protected $table = 'inventory_movements';
 
-    /**
-     * Campos que podem ser preenchidos em massa
-     */
     protected $fillable = [
         'product_id',
         'warehouse_id',
-        'movement_type',
+        'movement_type_id', // 🔹 Corrigido o nome do campo de relação
         'rental_rental_id',
         'sale_sale_id',
         'quantity_movement',
@@ -29,47 +25,54 @@ class InventoryModel extends Model
         'status',
     ];
 
-    /**
-     * Ativa timestamps automáticos (created_at e updated_at)
-     */
     public $timestamps = true;
 
-    /**
-     * Datas que são tratadas como Carbon (para SoftDeletes)
-     */
     protected $dates = ['deleted_at'];
 
     /**
-     * Relações
+     * ======================
+     * 🔹 RELACIONAMENTOS
+     * ======================
      */
 
-     
     // Produto vinculado
-
     public function product()
     {
-        return $this->belongsTo(ProductModel::class, 'product_id', 'id')->withTrashed();
+        return $this->belongsTo(ProductModel::class, 'product_id')->withTrashed();
     }
-    // Retorno  de tipos de movimentos;
-    public function movement_type()
+
+    // Tipo de movimento (entrada, saída, etc.)
+    public function movementType()
     {
-        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id', 'id')->withTrashed();
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id')->withTrashed();
     }
 
     // Armazém vinculado
     public function warehouse()
     {
-        return $this->belongsTo(WarehouseModel::class, 'warehouse_id', 'id')->withTrashed();
+        return $this->belongsTo(WarehouseModel::class, 'warehouse_id')->withTrashed();
     }
 
     // Empresa vinculada
     public function company()
     {
-        return $this->belongsTo(CompanyModel::class, 'company_id', 'id')->withTrashed();
+        return $this->belongsTo(CompanyModel::class, 'company_id')->withTrashed();
     }
 
-    public function movementType()
+    
+    public function category()
     {
-        return $this->belongsTo(MovementTypeModel::class, 'movement_type');
+        return $this->belongsTo(ProductCategoryModel::class, 'category_id')->withTrashed();
     }
+
+    public function unit()
+    {
+        return $this->belongsTo(ProductUnitsModel::class, 'unit_id')->withTrashed();
+    }
+
+    public function movement_type()
+    {
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id')->withTrashed();
+    }
+
 }

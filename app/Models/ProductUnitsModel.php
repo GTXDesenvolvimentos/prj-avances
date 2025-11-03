@@ -10,24 +10,26 @@ class ProductUnitsModel extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'units';
+    protected $table = 'product_units';
 
     protected $fillable = [
         'id',
         'symbol',
         'description',
         'status',
-        'company_id'
+        'company_id',
+        'created_by',
+        'updated_by'
     ];
 
-        // 👇 Opcional (útil para clareza e compatibilidade com versões antigas do Laravel)
+    // 👇 Opcional (útil para clareza e compatibilidade com versões antigas do Laravel)
     protected $dates = ['deleted_at'];
 
 
-     public function company()
+    public function company()
     {
         return $this->belongsTo(CompanyModel::class, 'company_id');
     }
 
-   
+
 }

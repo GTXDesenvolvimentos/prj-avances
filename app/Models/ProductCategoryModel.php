@@ -14,10 +14,13 @@ class ProductCategoryModel extends Model
 
     protected $fillable = [
         'id',
-        'name',
+        'category',
         'description',
         'status',
         'company_id',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     // 👇 Opcional (útil para clareza e compatibilidade com versões antigas do Laravel)

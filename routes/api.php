@@ -15,6 +15,9 @@ use App\Http\Controllers\ProductUnitsController;
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('product-units', ProductUnitsController::class);
+});
 
 
 Route::group(['middleware' => ['jwt.auth']], function () {
@@ -31,6 +34,7 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     // Categories routes
     Route::get('categories', [ProductCategoryController::class, 'index']);
     Route::post('categories', [ProductCategoryController::class, 'store']);
+    Route::get('categories/{id}', [ProductCategoryController::class, 'show']);
     Route::put('categories/{id}', [ProductCategoryController::class, 'update']);
     Route::delete('categories/{id}', [ProductCategoryController::class, 'destroy']);
 

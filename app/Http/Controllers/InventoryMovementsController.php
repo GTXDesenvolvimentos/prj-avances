@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Traits\ApiResponser;
 use App\Models\InventoryMovementsModel;
 use App\Models\MovementTypeModel;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class InventoryMovementsController extends Controller
 {
+    use ApiResponser;
+
     /**
      * Display a listing of the resource.
      *
@@ -18,8 +21,8 @@ class InventoryMovementsController extends Controller
      */
     public function index(Request $request)
     {
-        try {
-            // Usuário autenticado e empresa associada
+        
+        return $this->apiTryCatch(function () use ($request) {
             $user = $request->user();
             $companyId = $user->company_id;
 
@@ -30,15 +33,14 @@ class InventoryMovementsController extends Controller
             $startDate = $request->query('start_date');
             $endDate = $request->query('end_date');
 
-
             // Query base com as relações
             $query = InventoryMovementsModel::with(['product', 'movement_type', 'warehouse', 'company'])
-                ->where('company_id', $companyId); // Filtra pela empresa do usuário logado
+                ->where('company_id', $companyId);
 
             // Filtro por busca (exemplo: nome do produto)
             if (!empty($search)) {
                 $query->whereHas('product', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
+                    $q->where('product_name', 'like', "%{$search}%");
                 });
             }
 
@@ -65,31 +67,9 @@ class InventoryMovementsController extends Controller
             // Paginação
             $movements = $query->paginate($limit);
 
-            // Retorno padronizado
-            return response()->json([
-                'success' => true,
-                'data' => $movements->items(),
-                'pagination' => [
-                    'page' => $movements->currentPage(),
-                    'limit' => $movements->perPage(),
-                    'page_count' => $movements->lastPage(),
-                    'total_count' => $movements->total(),
-                ],
-                'message' => 'Inventory movements retrieved successfully.',
-            ], 200);
-
-        } catch (\Exception $e) {
-            // Tratamento de erro
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao buscar movimentos de inventário.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+            return $this->paginatedResponse($movements, 'Inventory movements retrieved successfully');
+        });
     }
-
-
-
 
     /**
      * Store a newly created resource in storage.
@@ -97,24 +77,22 @@ class InventoryMovementsController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-
-
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
-        $user = $request->user();
+        return $this->apiTryCatch(function () use ($request) {
+            $user = $request->user();
 
-        if (!$user->company_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Usuário não está vinculado a nenhuma empresa.',
-            ], 403);
-        }
+            if (!$user->company_id) {
+                return $this->errorResponse(
+                    'Usuário não está vinculado a nenhuma empresa.',
+                    'FORBIDDEN',
+                    403
+                );
+            }
 
-
-        try {
             DB::beginTransaction();
 
-            // ✅ Injeta company_id do usuário autenticado antes da validação
+            // Injeta company_id do usuário autenticado antes da validação
             $request->merge(['company_id' => $user->company_id]);
 
             // Validação dos dados
@@ -130,16 +108,12 @@ class InventoryMovementsController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation error.',
-                    'errors' => $validator->errors(),
-                ], 422);
+                return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
             $validated = $validator->validated();
 
-            // 2️⃣ Buscar o tipo de movimento no banco
+            // Buscar o tipo de movimento no banco
             $movementType = MovementTypeModel::find($validated['movement_type']);
             $lastMovement = InventoryMovementsModel::where('product_id', $validated['product_id'])
                 ->where('warehouse_id', $validated['warehouse_id'])
@@ -147,37 +121,43 @@ class InventoryMovementsController extends Controller
                 ->first();
 
             if (!$movementType) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Movement type not found.',
-                ], 404);
+                return $this->errorResponse(
+                    'Movement type not found.',
+                    'NOT_FOUND',
+                    404
+                );
             }
 
-            // CORREÇÃO: Verificar diretamente o tipo do movimento
+            // Verificar diretamente o tipo do movimento
             if ($movementType->type == 'in') {
-                // 4️⃣ Obter valores do último lançamento
+                // Obter valores do último lançamento
                 $lastQuantityTotal = $lastMovement->quantity_total ?? 0;
-                // 5️⃣ Calcular novos valores (ENTRADA: soma)
+                // Calcular novos valores (ENTRADA: soma)
                 $newQuantityTotal = $lastQuantityTotal + $validated['quantity_movement'];
-                // 6️⃣ Atualizar os valores validados
+                // Atualizar os valores validados
                 $validated['quantity_total'] = $newQuantityTotal;
             } elseif ($movementType->type == 'out') {
-                // 4️⃣ Obter valores do último lançamento
+                // Obter valores do último lançamento
                 $lastQuantityTotal = $lastMovement->quantity_total ?? 0;
-                // 5️⃣ Calcular novos valores (SAÍDA: subtrai)
+                // Calcular novos valores (SAÍDA: subtrai)
                 $newQuantityTotal = $lastQuantityTotal - $validated['quantity_movement'];
-                // 6️⃣ Atualizar os valores validados
+                // Atualizar os valores validados
                 $validated['quantity_total'] = $newQuantityTotal;
             }
 
             if ($validated['quantity_total'] < 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Insuficient Saldo!',
-                ], 404);
+                return $this->errorResponse(
+                    'Insuficient Saldo!',
+                    'INSUFFICIENT_STOCK',
+                    422
+                );
             }
 
-            // CORREÇÃO: Usar $validated em vez de $validator->validated()
+            // Adicionar created_by e updated_by
+            $validated['created_by'] = $user->id;
+            $validated['updated_by'] = $user->id;
+
+            // Criar o movimento
             $movement = InventoryMovementsModel::create($validated);
 
             DB::commit();
@@ -185,23 +165,9 @@ class InventoryMovementsController extends Controller
             // Carrega relações úteis para retorno
             $movement->load(['product', 'warehouse', 'company', 'movement_type']);
 
-            return response()->json([
-                'success' => true,
-                'data' => $movement,
-                'message' => 'Inventory movement created successfully.',
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error creating inventory movement.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+            return $this->createdResponse($movement, 'Inventory movement created successfully');
+        });
     }
-
 
     /**
      * Display the specified resource.
@@ -209,33 +175,26 @@ class InventoryMovementsController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function show($id): JsonResponse
+    public function show(Request $request, $id)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
+
             $movement = InventoryMovementsModel::withTrashed()
                 ->with(['product', 'warehouse', 'company', 'rental', 'sale'])
+                ->where('company_id', $user->company_id)
                 ->find($id);
 
             if (!$movement) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement not found.'
-                ], 404);
+                return $this->errorResponse(
+                    'Inventory movement not found.',
+                    'NOT_FOUND',
+                    404
+                );
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $movement,
-                'message' => 'Inventory movement retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving inventory movement.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->successResponse($movement, 'Inventory movement retrieved successfully');
+        });
     }
 
     /**
@@ -245,18 +204,22 @@ class InventoryMovementsController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(Request $request, $id)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
+
             DB::beginTransaction();
 
-            $movement = InventoryMovementsModel::find($id);
+            $movement = InventoryMovementsModel::where('company_id', $user->company_id)
+                ->find($id);
 
             if (!$movement) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement not found.'
-                ], 404);
+                return $this->errorResponse(
+                    'Inventory movement not found.',
+                    'NOT_FOUND',
+                    404
+                );
             }
 
             $validator = Validator::make($request->all(), [
@@ -273,34 +236,21 @@ class InventoryMovementsController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation error.',
-                    'errors' => $validator->errors()
-                ], 422);
+                return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
-            $movement->update($validator->validated());
+            $data = $validator->validated();
+            $data['updated_by'] = $user->id;
+
+            $movement->update($data);
 
             DB::commit();
 
             // Carrega as relações atualizadas
             $movement->load(['product', 'warehouse', 'company']);
 
-            return response()->json([
-                'success' => true,
-                'data' => $movement,
-                'message' => 'Inventory movement updated successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error updating inventory movement.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->updatedResponse($movement, 'Inventory movement updated successfully');
+        });
     }
 
     /**
@@ -309,37 +259,37 @@ class InventoryMovementsController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
+
             DB::beginTransaction();
 
-            $movement = InventoryMovementsModel::find($id);
+            $movement = InventoryMovementsModel::where('company_id', $user->company_id)
+                ->find($id);
 
             if (!$movement) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement not found.'
-                ], 404);
+                return $this->errorResponse(
+                    'Inventory movement not found.',
+                    'NOT_FOUND',
+                    404
+                );
             }
+
+            $movement->update([
+                'deleted_by' => $user->id
+            ]);
 
             $movement->delete();
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Inventory movement deleted successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error deleting inventory movement.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->deletedResponse(
+                'Inventory movement deleted successfully',
+                ['id' => $movement->id, 'deleted_at' => $movement->deleted_at]
+            );
+        });
     }
 
     /**
@@ -348,40 +298,40 @@ class InventoryMovementsController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function restore($id): JsonResponse
+    public function restore(Request $request, $id)
     {
-        try {
-            $movement = InventoryMovementsModel::withTrashed()->find($id);
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
+
+            $movement = InventoryMovementsModel::withTrashed()
+                ->where('company_id', $user->company_id)
+                ->find($id);
 
             if (!$movement) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement not found.'
-                ], 404);
+                return $this->errorResponse(
+                    'Inventory movement not found.',
+                    'NOT_FOUND',
+                    404
+                );
             }
 
             if (!$movement->trashed()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Inventory movement is not deleted.'
-                ], 400);
+                return $this->errorResponse(
+                    'Inventory movement is not deleted.',
+                    'NOT_DELETED',
+                    400
+                );
             }
 
             $movement->restore();
 
-            return response()->json([
-                'success' => true,
-                'data' => $movement,
-                'message' => 'Inventory movement restored successfully.'
-            ], 200);
+            $movement->update([
+                'deleted_by' => null,
+                'updated_by' => $user->id
+            ]);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error restoring inventory movement.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->successResponse($movement, 'Inventory movement restored successfully');
+        });
     }
 
     /**
@@ -390,28 +340,19 @@ class InventoryMovementsController extends Controller
      * @param  int  $productId
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getByProduct($productId): JsonResponse
+    public function getByProduct(Request $request, $productId)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request, $productId) {
+            $user = $request->user();
+
             $movements = InventoryMovementsModel::with(['warehouse', 'company'])
-                ->byProduct($productId)
-                ->active()
+                ->where('product_id', $productId)
+                ->where('company_id', $user->company_id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => $movements,
-                'message' => 'Product movements retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving product movements.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->successResponse($movements, 'Product movements retrieved successfully');
+        });
     }
 
     /**
@@ -420,28 +361,19 @@ class InventoryMovementsController extends Controller
      * @param  int  $warehouseId
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getByWarehouse($warehouseId): JsonResponse
+    public function getByWarehouse(Request $request, $warehouseId)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request, $warehouseId) {
+            $user = $request->user();
+
             $movements = InventoryMovementsModel::with(['product', 'company'])
-                ->byWarehouse($warehouseId)
-                ->active()
+                ->where('warehouse_id', $warehouseId)
+                ->where('company_id', $user->company_id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            return response()->json([
-                'success' => true,
-                'data' => $movements,
-                'message' => 'Warehouse movements retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving warehouse movements.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->successResponse($movements, 'Warehouse movements retrieved successfully');
+        });
     }
 
     /**
@@ -450,47 +382,34 @@ class InventoryMovementsController extends Controller
      * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function getStock(Request $request): JsonResponse
+    public function getStock(Request $request)
     {
-        try {
+        return $this->apiTryCatch(function () use ($request) {
+            $user = $request->user();
+
             $validator = Validator::make($request->all(), [
                 'product_id' => 'required|integer|exists:products,id',
                 'warehouse_id' => 'required|integer|exists:warehouses,id'
             ]);
 
             if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation error.',
-                    'errors' => $validator->errors()
-                ], 422);
+                return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
             $stock = InventoryMovementsModel::where('product_id', $request->product_id)
                 ->where('warehouse_id', $request->warehouse_id)
-                ->where('status', 'active')
+                ->where('company_id', $user->company_id)
                 ->orderBy('created_at', 'desc')
                 ->first();
 
             $currentStock = $stock ? $stock->quantity_total : 0;
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'product_id' => $request->product_id,
-                    'warehouse_id' => $request->warehouse_id,
-                    'current_stock' => $currentStock,
-                    'last_movement' => $stock
-                ],
-                'message' => 'Stock retrieved successfully.'
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error retrieving stock.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            return $this->successResponse([
+                'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
+                'current_stock' => $currentStock,
+                'last_movement' => $stock
+            ], 'Stock retrieved successfully');
+        });
     }
 }

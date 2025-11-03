@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 use App\Models\WarehouseModel;
+use App\Traits\ApiResponser;
+use Attribute;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -12,126 +14,158 @@ class WarehouseController extends Controller
      * List all warehouses (index)
      */
 
-    
+    use ApiResponser;
 
+    /** LISTAGEM DE DEPÓSITOS */
     public function index(Request $request)
     {
-        $user = $request->user();
-        $query = WarehouseModel::query();
-        $limit = (int) $request->query('limit', 25);
 
-        // 🔍 Filtros dinâmicos
+        $user = $request->user();
+        $limit = (int) $request->query('limit', default: 25);
+        $search = trim($request->query('search', ''), '"\'');
+
+
+
+        // Consulta base com company_id
+        $query = WarehouseModel::where('company_id', $user->company_id);
+
+
+        // Filtro de busca
+
         $search = trim($request->query('search', ''), '"\'');
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('note', 'LIKE', "%{$search}%");
+                    ->orWhere('note', 'LIKE', "%{$search}%");
             });
-        }       
-       
+        }
 
-        // 📊 Ordenação (padrão: id desc)
-        $query->when($request->sort_by, function ($q, $sortBy) use ($request) {
-            $direction = $request->get('sort_dir', 'asc');
-            $q->orderBy($sortBy, $direction);
-        }, function ($q) {
-            $q->orderByDesc('id');
-        });
-
+        // Ordenação
+        $query->orderBy('created_at', 'desc');
 
         $warehouses = $query->paginate($limit);
 
-        return response()->json([
-            'success' => true,
-            'data' => $warehouses->items(),
-            'pagination' => [
-                'page' => $warehouses->currentPage(),
-                'limit' => $warehouses->perPage(),
-                'page_count' => $warehouses->lastPage(),
 
-                'total_count' => $warehouses->total(),
-            ],
-        ], 200);
+        // Paginação
+        $warehouses = $query->paginate($limit);
 
+        return $this->paginatedResponse($warehouses, 'Product categories retrieved successfully');
     }
-
-
-
-
-
-    /**
-     * Create a new warehouse (store)
-     */
+    
+    /** CRIAÇÃO DE DEPÓSITOS */
     public function store(Request $request)
     {
-        $user = $request->user();
-        $request->merge(['company_id' => $user->company_id]);
+        return $this->apiTryCatch(function () use ($request) {
+            $user = $request->user();
+            $data = $request->all();
+            $data['company_id'] = $user->company_id;
 
-        $validator = Validator::make($request->all(), [
-            'address_id' => 'required|integer',
-            'name' => 'required|string|max:255',
-            'note' => 'nullable|string',
-            'company_id' => 'required|integer',
-        ]);
+            // Validação dos dados
+            $validator = Validator::make($data, [
+                'address_id' => 'required|integer',
+                'warehouse' => 'required|string|min:1|unique:warehouses,warehouse,NULL,NULL,company_id,' . $user->company_id,
+                'note' => 'nullable|string',
+                'company_id' => 'required|integer',
+                //'company_id' => 'required|integer|exists:companies,id',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        try {
-            $warehouse = WarehouseModel::create($request->all());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Warehouse successfully created!',
-                'data' => $warehouse
-            ], 201);
-
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Database error while creating warehouse.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Show a specific warehouse
-     */
-    public function show($id)
-    {
-        try {
-            $warehouse = WarehouseModel::find($id);
-
-            if (!$warehouse) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Warehouse not found.'
-                ], 404);
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $warehouse
-            ], 200);
+            // Criação da categoria
+            $data = [
+                'address_id' => $request->address_id,
+                'warehouse' => $request->warehouse,
+                'note' => $request->note,
+                'company_id' => $user->company_id,
+                "created_by" => $user->id,
+                "updated_by" => $user->id
+            ];
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error while retrieving warehouse.',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+            $warehouse = WarehouseModel::create($data);
+
+            return $this->createdResponse($warehouse, 'Warehouse created successfully');
+        });
+
     }
+
+    public function show(Request $request, $id)
+    {
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
+
+            $warehouse = WarehouseModel::where('id', $id)
+                ->where('company_id', $user->company_id)
+                ->first();
+
+            if (!$warehouse) {
+                return $this->errorResponse(
+                    'Warehouse not found',
+                    'NOT_FOUND',
+                    404
+                );
+            }
+
+            return $this->successResponse($warehouse, 'Warehouse retrieved successfully');
+        });
+    }
+
+    /** ATUALIZAÇÃO DA WAREHOUSE */
+    public function update(Request $request, $id)
+    {
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
+            $data = $request->all();
+            $data['company_id'] = $user->company_id;
+
+            // Busca a wharehouse garantindo que pertence à mesma empresa
+            $warehouse = WarehouseModel::where('id', $id)
+                ->where('company_id', $user->company_id)
+                ->first();
+
+            if (!$warehouse) {
+                return $this->errorResponse(
+                    'Warehouse not found or not accessible for this user.',
+                    'NOT_FOUND',
+                    404
+                );
+            }
+
+            // Validação (ignorando o próprio registro no unique)
+            $validator = Validator::make($data, [
+                'address_id' => 'required|integer',
+                'warehouse' => 'required|string|min:1|unique:warehouses,warehouse,' . $id . ',id,company_id,' . $user->company_id,
+                'note' => 'nullable|string',
+                'company_id' => 'required|integer',
+                //'company_id' => 'required|integer|exists:companies,id',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
+            }
+
+
+
+            // Atualização
+            // Atualização correta
+            $warehouse->update([
+                'address_id' => $request->address_id ?? $warehouse->address_id,
+                'warehouse' => $request->warehouse ?? $warehouse->warehouse,
+                'note' => $request->note ?? $warehouse->note,
+                'updated_by' => $user->id,
+                'company_id' => $user->company_id,
+            ]);
+
+            return $this->updatedResponse($warehouse, 'Warehouse updated successfully');
+        });
+    }
+
 
     /**
      * Update an existing warehouse
      */
-    public function update(Request $request, $id)
+    public function update1(Request $request, $id)
     {
         try {
             $warehouse = WarehouseModel::find($id);

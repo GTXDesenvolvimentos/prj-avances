@@ -16,10 +16,12 @@ class WarehouseModel extends Model
     protected $fillable = [
         'id',
         'address_id',
-        'name',
+        'warehouse',
         'note',
         'company_id',
         'status',
+        'created_by',
+        'updated_by'
     ];
 
     // 👇 Opcional (útil para clareza e compatibilidade com versões antigas do Laravel)

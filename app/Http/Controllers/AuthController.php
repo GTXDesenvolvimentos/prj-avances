@@ -23,7 +23,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  * )
  * 
   * @OA\Server(
- *      url="https://avances.gtxsoftware.com.br/public/api",
+ *      url="https://api.avances.com.br/api/",
  *     description="Ambiente de Produção - Avances API"
  * )
  * 

@@ -5,6 +5,8 @@ return [
     'allowed_methods' => ['*'],
     'allowed_origins' => [
         'https://avances.vercel.app',
+        'https://staging.avances.com.br',
+        'https://avances.com.br',
         'http://localhost:3000', // pra testes locais
     ],
     'allowed_origins_patterns' => [],

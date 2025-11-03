@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Traits\ApiResponser;
 use App\Models\AddressModel;
 use App\Models\ContactEntitiesModel;
 use App\Models\PartnerModel;
@@ -14,16 +15,17 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class PartnerController extends Controller
 {
+    use ApiResponser;
+
     public function index(Request $request)
     {
-        try {
+        
+        return $this->apiTryCatch(function () use ($request) {
             $user = $request->user();
             $companyId = $user->company_id;
 
             $search = trim($request->query('search', ''), '"\'');
-            //$partnerType = $request->query('partner_type');
             $limit = (int) $request->query('limit', 25);
-            //$name = trim($request->query('name', ''), '"\'');
 
             $query = PartnerModel::with(['contacts', 'addresses'])
                 ->where('company_id', $companyId);
@@ -37,87 +39,56 @@ class PartnerController extends Controller
                 });
             }
 
-            $query->orderBy('id', 'desc'); // <-- aqui adiciona o orderBy
+            $query->orderBy('id', 'desc');
 
-            $partners = $query->get();
+            $partners = $query->paginate($limit);
 
-            if (!$partners) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No partners found.',
-                ], 404);
-            }
-
-            $products = $query->paginate($limit);
-
-            return response()->json([
-                'success' => true,
-                'partner' => $partners,
-                'pagination' => [
-                    'page' => $products->currentPage(),
-                    'limit' => $products->perPage(),
-                    'page_count' => $products->lastPage(),
-                    'total_count' => $products->total(),
-                ],
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error listing partners.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+            return $this->paginatedResponse($partners, 'Partners retrieved successfully');
+        });
     }
-
-
 
     public function store(Request $request)
     {
-        $data = $request->json()->all();
+        return $this->apiTryCatch(function () use ($request) {
+            $data = $request->json()->all();
 
-        $validator = Validator::make($data, [
-            'name' => 'required|string|min:1|max:255',
-            'tax_id' => 'required|string|max:20|unique:partners,tax_id',
-            'partner_type' => 'nullable|array',
-            'partner_type.*' => 'in:customer,supplier',
-            'person_type' => ['required', 'string', Rule::in(['legal', 'individual'])],
-            'status' => 'boolean',
-            'note' => 'nullable|string|max:1000',
+            $validator = Validator::make($data, [
+                'name' => 'required|string|min:1|max:255',
+                'tax_id' => 'required|string|max:20|unique:partners,tax_id',
+                'partner_type' => 'nullable|array',
+                'partner_type.*' => 'in:customer,supplier',
+                'person_type' => ['required', 'string', Rule::in(['legal', 'individual'])],
+                'status' => 'boolean',
+                'note' => 'nullable|string|max:1000',
 
-            'contacts' => 'nullable|array',
-            'contacts.*.name' => 'required|string|max:255',
-            'contacts.*.note' => 'nullable|string|max:200',
-            'contacts.*.type' => 'nullable|string|max:200',
-            'contacts.*.contact' => 'nullable|string|max:200',
+                'contacts' => 'nullable|array',
+                'contacts.*.name' => 'required|string|max:255',
+                'contacts.*.note' => 'nullable|string|max:200',
+                'contacts.*.type' => 'nullable|string|max:200',
+                'contacts.*.contact' => 'nullable|string|max:200',
 
-            'addresses' => 'nullable|array',
-            'addresses.*.zip_code' => 'required|string|max:10',
-            'addresses.*.street' => 'required|string|max:200',
-            'addresses.*.number' => 'nullable|string|max:10',
-            'addresses.*.complement' => 'nullable|string|max:100',
-            'addresses.*.neighborhood' => 'nullable|string|max:100',
-            'addresses.*.city' => 'required|string|max:100',
-            'addresses.*.state' => 'required|string|max:2',
-            'addresses.*.status' => 'nullable|string|max:1',
-            'addresses.*.active' => 'boolean',
-        ]);
+                'addresses' => 'nullable|array',
+                'addresses.*.zip_code' => 'required|string|max:10',
+                'addresses.*.street' => 'required|string|max:200',
+                'addresses.*.number' => 'nullable|string|max:10',
+                'addresses.*.complement' => 'nullable|string|max:100',
+                'addresses.*.neighborhood' => 'nullable|string|max:100',
+                'addresses.*.city' => 'required|string|max:100',
+                'addresses.*.state' => 'required|string|max:2',
+                'addresses.*.status' => 'nullable|string|max:1',
+                'addresses.*.active' => 'boolean',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
+            }
 
-        try {
             $companyId = auth()->user()->company_id;
             $userId = auth()->id();
 
             DB::beginTransaction();
 
             $partner_type = $request->partner_type;
-
             if (is_array($partner_type)) {
                 $partner_type = implode(',', $partner_type);
             }
@@ -130,6 +101,8 @@ class PartnerController extends Controller
                 'company_id' => $companyId,
                 'status' => $data['status'] ?? true,
                 'note' => $data['note'] ?? null,
+                'created_by' => $userId,
+                'updated_by' => $userId,
             ]);
 
             if (!empty($data['contacts'])) {
@@ -168,96 +141,63 @@ class PartnerController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'partner' => [
-                    'id' => $partner->id,
-                    'name' => $partner->name,
-                    'tax_id' => $partner->tax_id,
-                    'partner_type' => $partner->partner_type,
-                    'person_type' => $partner->person_type,
-                    'status' => $partner->status,
-                    'note' => $partner->note,
-                    'contacts' => $partner->contacts,
-                    'addresses' => $partner->addresses,
-                ]
-            ], 201);
+            $partner->load(['contacts', 'addresses']);
 
-        } catch (QueryException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage(),
-                ],
-            ], 400);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage(),
-                ],
-            ], 500);
-        }
+            return $this->createdResponse($partner, 'Partner created successfully');
+        });
     }
-
-
 
     public function update(Request $request, $id)
     {
-        $data = $request->json()->all();
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $data = $request->json()->all();
+            $user = auth()->user();
+            $companyId = $user->company_id;
 
-        $validator = Validator::make($data, [
-            'name' => 'required|string|min:1|max:255',
-            'tax_id' => [
-                'required',
-                'string',
-                'max:20',
-                Rule::unique('partners', 'tax_id')->ignore($id),
-            ],
-            'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
-            'status' => 'boolean',
-            'note' => 'nullable|string|max:1000',
+            $validator = Validator::make($data, [
+                'name' => 'required|string|min:1|max:255',
+                'tax_id' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    Rule::unique('partners', 'tax_id')->ignore($id),
+                ],
+                'partner_type' => ['required', 'string', Rule::in(['customer', 'supplier', 'distributor', 'reseller', 'partner'])],
+                'status' => 'boolean',
+                'note' => 'nullable|string|max:1000',
 
-            'contacts' => 'nullable|array',
-            'contacts.*.name' => 'required|string|max:255',
-            'contacts.*.note' => 'nullable|string|max:200',
-            'contacts.*.type' => 'nullable|string|max:200',
-            'contacts.*.contact' => 'nullable|string|max:200',
+                'contacts' => 'nullable|array',
+                'contacts.*.name' => 'required|string|max:255',
+                'contacts.*.note' => 'nullable|string|max:200',
+                'contacts.*.type' => 'nullable|string|max:200',
+                'contacts.*.contact' => 'nullable|string|max:200',
 
-            'addresses' => 'nullable|array',
-            'addresses.*.zip_code' => 'required|string|max:10',
-            'addresses.*.street' => 'required|string|max:200',
-            'addresses.*.number' => 'nullable|string|max:10',
-            'addresses.*.complement' => 'nullable|string|max:100',
-            'addresses.*.neighborhood' => 'nullable|string|max:100',
-            'addresses.*.city' => 'required|string|max:100',
-            'addresses.*.state' => 'required|string|max:2',
-            'addresses.*.status' => 'nullable|string|max:1',
-            'addresses.*.active' => 'boolean',
-        ]);
+                'addresses' => 'nullable|array',
+                'addresses.*.zip_code' => 'required|string|max:10',
+                'addresses.*.street' => 'required|string|max:200',
+                'addresses.*.number' => 'nullable|string|max:10',
+                'addresses.*.complement' => 'nullable|string|max:100',
+                'addresses.*.neighborhood' => 'nullable|string|max:100',
+                'addresses.*.city' => 'required|string|max:100',
+                'addresses.*.state' => 'required|string|max:2',
+                'addresses.*.status' => 'nullable|string|max:1',
+                'addresses.*.active' => 'boolean',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        try {
-            $companyId = auth()->user()->company_id;
-            $userId = auth()->id();
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
+            }
 
             $partner = PartnerModel::where('company_id', $companyId)
                 ->where('id', $id)
                 ->first();
 
             if (!$partner) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Partner not found.',
-                ], 404);
+                return $this->errorResponse(
+                    'Partner not found.',
+                    'NOT_FOUND',
+                    404
+                );
             }
 
             DB::beginTransaction();
@@ -268,6 +208,7 @@ class PartnerController extends Controller
                 'partner_type' => $data['partner_type'],
                 'status' => $data['status'] ?? $partner->status,
                 'note' => $data['note'] ?? $partner->note,
+                'updated_by' => $user->id,
             ]);
 
             if (isset($data['contacts'])) {
@@ -282,7 +223,7 @@ class PartnerController extends Controller
                         'type' => $contact['type'] ?? null,
                         'contact' => $contact['contact'] ?? null,
                         'company_id' => $companyId,
-                        'created_by' => $userId,
+                        'created_by' => $user->id,
                     ]);
                 }
             }
@@ -303,7 +244,7 @@ class PartnerController extends Controller
                         'state' => $address['state'],
                         'status' => $address['status'] ?? 'A',
                         'active' => $address['active'] ?? true,
-                        'created_by' => $userId,
+                        'created_by' => $user->id,
                     ]);
                 }
             }
@@ -312,55 +253,33 @@ class PartnerController extends Controller
 
             $partner->load(['contacts', 'addresses']);
 
-            return response()->json([
-                'success' => true,
-                'partner' => [
-                    'id' => $partner->id,
-                    'name' => $partner->name,
-                    'tax_id' => $partner->tax_id,
-                    'partner_type' => $partner->partner_type,
-                    'status' => $partner->status,
-                    'note' => $partner->note,
-                    'contacts' => $partner->contacts,
-                    'addresses' => $partner->addresses,
-                ]
-            ], 200);
-
-        } catch (QueryException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage(),
-                ],
-            ], 400);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage(),
-                ],
-            ], 500);
-        }
+            return $this->updatedResponse($partner, 'Partner updated successfully');
+        });
     }
 
-
-
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        try {
-            $user = auth()->user();
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
 
             $partner = PartnerModel::with(['contacts', 'addresses'])
                 ->where('company_id', $user->company_id)
-                ->findOrFail($id);
+                ->find($id);
+
+            if (!$partner) {
+                return $this->errorResponse(
+                    'Partner not found.',
+                    'NOT_FOUND',
+                    404
+                );
+            }
 
             $formatted = [
                 'id' => $partner->id,
                 'name' => $partner->name,
                 'tax_id' => $partner->tax_id,
                 'partner_type' => $partner->partner_type,
+                'person_type' => $partner->person_type,
                 'status' => $partner->status,
                 'note' => $partner->note,
                 'contacts' => $partner->contacts->map(function ($c) {
@@ -389,108 +308,57 @@ class PartnerController extends Controller
                 }),
             ];
 
-            return response()->json([
-                'success' => true,
-                'partner' => $formatted,
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Partner not found.'],
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
+            return $this->successResponse($formatted, 'Partner retrieved successfully');
+        });
     }
 
-
-
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        try {
-            $user = auth()->user();
+        return $this->apiTryCatch(function () use ($request, $id) {
+            $user = $request->user();
 
             $partner = PartnerModel::where('company_id', $user->company_id)
                 ->with(['contacts', 'addresses'])
-                ->findOrFail($id);
+                ->find($id);
 
+            if (!$partner) {
+                return $this->errorResponse(
+                    'Partner not found.',
+                    'NOT_FOUND',
+                    404
+                );
+            }
+
+            DB::beginTransaction();
+
+            // Atualizar deleted_by nos relacionamentos
             if ($partner->contacts) {
                 foreach ($partner->contacts as $contact) {
+                    $contact->update(['deleted_by' => $user->id]);
                     $contact->delete();
                 }
             }
 
             if ($partner->addresses) {
                 foreach ($partner->addresses as $address) {
+                    $address->update(['deleted_by' => $user->id]);
                     $address->delete();
                 }
             }
 
+            // Atualizar deleted_by no partner
+            $partner->update([
+                'deleted_by' => $user->id
+            ]);
+
             $partner->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Partner and related data successfully marked as deleted!',
-                'data' => [
-                    'id' => $partner->id,
-                    'deleted_at' => $partner->deleted_at,
-                ],
-            ], 200);
+            DB::commit();
 
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Partner not found.'],
-            ], 404);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
+            return $this->deletedResponse(
+                'Partner and related data successfully marked as deleted!',
+                ['id' => $partner->id, 'deleted_at' => $partner->deleted_at]
+            );
+        });
     }
-
-
-
-    public function restore($id)
-    {
-        try {
-            $user = auth()->user();
-            $partner = PartnerModel::withTrashed()
-                ->where('company_id', $user->company_id)
-                ->findOrFail($id);
-
-            if (!$partner->trashed()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => ['general' => 'Partner is not deleted.'],
-                ], 400);
-            }
-
-            $partner->restore();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Partner successfully restored!',
-                'data' => $partner,
-            ], 200);
-
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => 'Partner not found.'],
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => ['general' => $e->getMessage()],
-            ], 500);
-        }
-    }
-
 }
