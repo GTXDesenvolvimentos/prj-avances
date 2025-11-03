@@ -27,4 +27,4 @@ jobs:
           local-dir: ./
           server-dir: api.staging.avances.com.br/
           protocol: ftps
-          dangerous-clean-slate: false
+          dangerous-clean-slate: true
