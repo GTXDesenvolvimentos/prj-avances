@@ -29,6 +29,7 @@ jobs:
             **/node_modules/**
             **/vendor/**
             **/.env*
+            **/index.php
             **/storage/**
             **/tests/**
             **/bootstrap/cache/**

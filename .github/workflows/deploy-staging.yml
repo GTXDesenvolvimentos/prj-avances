@@ -38,6 +38,7 @@ jobs:
             **/vendor/**
             **/.env*
             **/storage/**
+            **/index.php
             **/tests/**
             **/bootstrap/cache/**
             **/public/storage/**
