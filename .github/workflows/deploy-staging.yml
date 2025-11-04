@@ -1,23 +1,26 @@
 name: Deploy Staging to cPanel
 
-# Dispara sempre que houver push na branch master
+# Dispara sempre que houver push na branch main
 on:
   push:
     branches:
       - main
 
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-
     steps:
-      # :one: Puxar o código
+      # 1️⃣ Clona o repositório
       - name: Checkout repository
         uses: actions/checkout@v4
-  
-      # :two: Deploy via FTP(S) para subdomínio
+
+      # 2️⃣ Remove arquivos e pastas desnecessárias antes do deploy
+      - name: Prepare Laravel app for deploy
+        run: |
+          rm -rf node_modules vendor tests storage/logs/* storage/framework/cache/* storage/framework/sessions/* storage/framework/views/*
+
+      # 3️⃣ Faz o deploy via FTPS para o subdomínio de staging
       - name: Deploy to Staging
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -28,3 +31,19 @@ jobs:
           server-dir: api.staging.avances.com.br/
           protocol: ftps
           dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/vendor/**
+            **/.env*
+            **/storage/**
+            **/tests/**
+            **/bootstrap/cache/**
+            **/public/storage/**
+            **/public/hot
+            **/package*.json
+            **/vite.config.*
+            **/webpack.mix.js
+            **/.DS_Store
+            **/Thumbs.db

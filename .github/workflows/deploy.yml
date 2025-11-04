@@ -1,22 +1,18 @@
 name: Deploy production to cPanel
 
-
-# Dispara sempre que houver push na branch master
 on:
   push:
     tags:
       - 'v*'
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-
     steps:
-      # :one: Puxar o código
       - name: Checkout repository
         uses: actions/checkout@v4
-  
-      # :two: Deploy via FTP(S) para subdomínio
+
       - name: Deploy to production
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
@@ -27,3 +23,17 @@ jobs:
           server-dir: api.avances.com.br/
           protocol: ftps
           dangerous-clean-slate: true
+          exclude: |
+            **/.git*
+            **/.github*
+            **/node_modules/**
+            **/vendor/**
+            **/.env*
+            **/storage/**
+            **/tests/**
+            **/bootstrap/cache/**
+            **/public/storage/**
+            **/public/hot
+            **/package*.json
+            **/vite.config.*
+            **/webpack.mix.js
