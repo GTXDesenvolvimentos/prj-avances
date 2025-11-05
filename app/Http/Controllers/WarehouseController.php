@@ -19,39 +19,45 @@ class WarehouseController extends Controller
     /** LISTAGEM DE DEPÓSITOS */
     public function index(Request $request)
     {
+        return $this->apiTryCatch(function () use ($request) {
 
-        $user = $request->user();
-        $limit = (int) $request->query('limit', default: 25);
-        $search = trim($request->query('search', ''), '"\'');
+            $user = $request->user();
+            $limit = (int) $request->query('limit', 25);
+            $search = trim($request->query('search', ''), '"\'');
 
+            // 🔒 Consulta base — apenas registros da empresa do usuário
+            $query = WarehouseModel::query()
+                ->where('company_id', $user->company_id);
 
+            // 🔍 Filtro de busca
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('warehouse', 'LIKE', "%{$search}%")
+                        ->orWhere('note', 'LIKE', "%{$search}%");
+                });
+            }
 
-        // Consulta base com company_id
-        $query = WarehouseModel::where('company_id', $user->company_id);
+            // ⚙️ Filtro de status (opcional)
+            if ($request->filled('status')) {
+                $query->where('status', $request->query('status'));
+            }
 
+            // 🔽 Ordenação
+            $query->orderBy('created_at', 'desc');
 
-        // Filtro de busca
+            // 📄 Paginação
+            $warehouses = $query->paginate($limit);
 
-        $search = trim($request->query('search', ''), '"\'');
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                    ->orWhere('note', 'LIKE', "%{$search}%");
-            });
-        }
+            // 🧠 Debug opcional: descomente se quiser inspecionar a query
+            // dd($request->user())['company_id'];
 
-        // Ordenação
-        $query->orderBy('created_at', 'desc');
-
-        $warehouses = $query->paginate($limit);
-
-
-        // Paginação
-        $warehouses = $query->paginate($limit);
-
-        return $this->paginatedResponse($warehouses, 'Product categories retrieved successfully');
+            return $this->paginatedResponse($warehouses, 'Warehouses retrieved successfully');
+        });
     }
-    
+
+
+
+
     /** CRIAÇÃO DE DEPÓSITOS */
     public function store(Request $request)
     {
