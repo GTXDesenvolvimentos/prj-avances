@@ -135,15 +135,16 @@ class ProductCategoryController extends Controller
                 return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
-            // Atualização
-            $data = [
+
+             // 💾 Atualiza os dados da categoria
+            $category->update([
                 'category' => $request->category,
                 'description' => $request->description,
                 'company_id' => $user->company_id,
-                "updated_by" => $user->id
-            ];
+                "updated_by" => $user->id,
+            ]);
 
-            return $this->updatedResponse($data, 'Product category updated successfully');
+            return $this->updatedResponse($category, 'Product category updated successfully');
         });
     }
 
