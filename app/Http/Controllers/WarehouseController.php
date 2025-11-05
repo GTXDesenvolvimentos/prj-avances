@@ -50,7 +50,6 @@ class WarehouseController extends Controller
 
             // 🧠 Debug opcional: descomente se quiser inspecionar a query
             // dd($request->user())['company_id'];
-
             return $this->paginatedResponse($warehouses, 'Warehouses retrieved successfully');
         });
     }
@@ -68,7 +67,6 @@ class WarehouseController extends Controller
 
             // Validação dos dados
             $validator = Validator::make($data, [
-                'address_id' => 'required|integer',
                 'warehouse' => 'required|string|min:1|unique:warehouses,warehouse,NULL,NULL,company_id,' . $user->company_id,
                 'note' => 'nullable|string',
                 'company_id' => 'required|integer',
@@ -81,7 +79,6 @@ class WarehouseController extends Controller
 
             // Criação da categoria
             $data = [
-                'address_id' => $request->address_id,
                 'warehouse' => $request->warehouse,
                 'note' => $request->note,
                 'company_id' => $user->company_id,
@@ -140,7 +137,6 @@ class WarehouseController extends Controller
 
             // Validação (ignorando o próprio registro no unique)
             $validator = Validator::make($data, [
-                'address_id' => 'required|integer',
                 'warehouse' => 'required|string|min:1|unique:warehouses,warehouse,' . $id . ',id,company_id,' . $user->company_id,
                 'note' => 'nullable|string',
                 'company_id' => 'required|integer',
@@ -156,7 +152,6 @@ class WarehouseController extends Controller
             // Atualização
             // Atualização correta
             $warehouse->update([
-                'address_id' => $request->address_id ?? $warehouse->address_id,
                 'warehouse' => $request->warehouse ?? $warehouse->warehouse,
                 'note' => $request->note ?? $warehouse->note,
                 'updated_by' => $user->id,
@@ -184,7 +179,6 @@ class WarehouseController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'address_id' => 'sometimes|required|integer',
                 'name' => 'sometimes|required|string|max:255',
                 'note' => 'nullable|string',
                 'status' => 'sometimes|required|boolean',
