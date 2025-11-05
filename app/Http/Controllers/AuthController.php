@@ -4,6 +4,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CompanyModel;
+use App\Traits\ApiResponser;
+use DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -22,7 +25,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  *     )
  * )
  * 
-  * @OA\Server(
+ * @OA\Server(
  *      url="https://api.avances.com.br/api/",
  *     description="Ambiente de Produção - Avances API"
  * )
@@ -60,6 +63,7 @@ use Tymon\JWTAuth\Exceptions\JWTException;
  */
 class AuthController extends Controller
 {
+    use ApiResponser;
     /**
      * Registro de novo usuário
      * 
@@ -103,58 +107,75 @@ class AuthController extends Controller
      *     )
      * )
      */
-    public function register(Request $request)
+    public function store(Request $request)
     {
-        // Seu código existente permanece o mesmo
-        $data = $request->json()->all();
+        return $this->apiTryCatch(function () use ($request) {
+            $data = $request->json()->all();
 
-        $lastCompanyId = User::max('company_id');
-        $nextCompanyId = ($lastCompanyId ?? 0) + 1;
+            // 🔢 Define o próximo company_id
+            $lastCompanyId = User::max('company_id');
+            $nextCompanyId = ($lastCompanyId ?? 0) + 1;
 
-        $validator = Validator::make($data, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
+            // ✅ Validação dos dados
+            $validator = Validator::make($data, [
+                // Usuário
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email',
+                'password' => 'required|string|min:6|confirmed',
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
 
-        try {
-            $user = User::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => Hash::make($data['password']),
-                'company_id' => $nextCompanyId,
             ]);
 
-            $token = JWTAuth::fromUser($user);
+            if ($validator->fails()) {
+                return $this->validationErrorResponse($validator->errors()->toArray());
+            }
 
-            return response()->json([
-                'success' => true,
-                'user' => $user,
-                'token' => $token
-            ], 200);
+            DB::beginTransaction();
 
-        } catch (QueryException $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'database' => $e->getMessage()
-                ]
-            ], 400);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'errors' => [
-                    'general' => $e->getMessage()
-                ]
-            ], 500);
-        }
+            try {
+                // 👤 Cria o usuário
+                $user = User::create([
+                    'name' => $data['name'],
+                    'email' => $data['email'],
+                    'password' => Hash::make($data['password']),
+                    'company_id' => $nextCompanyId,
+                ]);
+
+                // 🏢 Cria a empresa associada
+                $companyData = [
+                    'id' => $nextCompanyId,
+                    'company_name' => 'Aguardando atualização do '.$nextCompanyId,
+                    'tax_id' => $nextCompanyId,
+                    'phone' => '00 00000-0000',
+                    'status' => $data['status'] ?? 'I', // Inativa por padrão
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ];
+
+                $company = CompanyModel::create($companyData);
+
+                // 🔑 Gera o token JWT
+                $token = JWTAuth::fromUser($user);
+
+                // ✅ Confirma as alterações
+                DB::commit();
+
+                return $this->createdResponse([
+                    'user' => $user,
+                    'company' => $company,
+                    'token' => $token,
+                ], 'User and company registered successfully');
+            } catch (\Exception $e) {
+                // ❌ Se ocorrer erro, desfaz tudo
+                DB::rollBack();
+
+                return $this->errorResponse(
+                    'Failed to register user and company: ' . $e->getMessage(),
+                    'INTERNAL_ERROR',
+                    500
+                );
+            }
+        });
     }
 
     /**

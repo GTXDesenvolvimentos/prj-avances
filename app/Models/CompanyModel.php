@@ -16,29 +16,29 @@ class CompanyModel extends Model
     // Campos que podem ser preenchidos em massa
     protected $fillable = [
         'id',
-        'address_id',
-        'name',
+        'company_name',
         'tax_id',
         'phone',
         'status',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     // Datas que são tratadas como Carbon (necessário para SoftDeletes)
     protected $dates = ['deleted_at'];
 
     /**
-     * Relações (exemplos, podem ser ajustadas conforme necessidade)
+     * Eventos automáticos no Model
      */
-
-    // Endereço da empresa
-    // public function address()
-    // {
-    //     return $this->belongsTo(Address::class, 'address_id');
-    // }
-
-    // // Produtos da empresa (exemplo de relação, se existir)
-    // public function products()
-    // {
-    //     return $this->hasMany(ProductModel::class, 'company_id');
-    // }
+    protected static function booted()
+    {
+        static::saving(function ($model) {
+            // Converte tax_id vazio para NULL
+            if ($model->tax_id === '') {
+                $model->tax_id = null;
+            }
+        });
+    }
+  
 }

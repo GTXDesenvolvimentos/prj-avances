@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryMovementsController;
 use App\Http\Controllers\MovementTypeController;
@@ -12,7 +13,7 @@ use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductUnitsController;
 
-Route::post('register', [AuthController::class, 'register']);
+Route::post('register', [AuthController::class, 'store']);
 Route::post('login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -80,6 +81,12 @@ Route::group(['middleware' => ['jwt.auth']], function () {
     Route::put('partners/{id}', [PartnerController::class, 'update']);
     Route::delete('partners/{id}', [PartnerController::class, 'destroy']);
 
+    //Partiner  routes
+    Route::get('companies', [CompanyController::class, 'index']);
+    Route::get('companies/{id}', [CompanyController::class, 'show']);
+    Route::post('companies', [CompanyController::class, 'store']);
+    Route::put('companies/{id}', [CompanyController::class, 'update']);
+    Route::delete('companies/{id}', [CompanyController::class, 'destroy']);
 
     // Nauta IA routes
     Route::post('chat', [NautaIaController::class, 'chat']);
