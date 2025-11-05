@@ -135,7 +135,6 @@ class ProductCategoryController extends Controller
                 return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
-
              // 💾 Atualiza os dados da categoria
             $category->update([
                 'category' => $request->category,
