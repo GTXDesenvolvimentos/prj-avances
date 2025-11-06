@@ -35,6 +35,12 @@ class PartnerModel extends Model
         'partner_type',
         'person_type',
         'company_id',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+        'created_by',
+        'updated_by',
+        'deleted_by',
         'status',
         'note'
     ];

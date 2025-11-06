@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AddressPartnerModel;
 use App\Traits\ApiResponser;
 use App\Models\AddressModel;
 use App\Models\ContactEntitiesModel;
 use App\Models\PartnerModel;
 use DB;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class PartnerController extends Controller
 {
@@ -19,7 +18,7 @@ class PartnerController extends Controller
 
     public function index(Request $request)
     {
-        
+
         return $this->apiTryCatch(function () use ($request) {
             $user = $request->user();
             $companyId = $user->company_id;
@@ -51,6 +50,10 @@ class PartnerController extends Controller
     {
         return $this->apiTryCatch(function () use ($request) {
             $data = $request->json()->all();
+
+            $user = $request->user();
+            $companyId = $user->company_id;
+            $userId = $user->id;
 
             $validator = Validator::make($data, [
                 'name' => 'required|string|min:1|max:255',
@@ -110,7 +113,6 @@ class PartnerController extends Controller
                     ContactEntitiesModel::create([
                         'name' => $contact['name'],
                         'note' => $contact['note'] ?? null,
-                        'partner_id' => $partner->id,
                         'partners_id' => $partner->id,
                         'type' => $contact['type'],
                         'contact' => $contact['contact'],
@@ -122,12 +124,13 @@ class PartnerController extends Controller
 
             if (!empty($data['addresses'])) {
                 foreach ($data['addresses'] as $address) {
-                    AddressModel::create([
+                    // Cria o endereço normalmente
+                    $addressModel = AddressModel::create([
                         'company_id' => $companyId,
                         'partner_id' => $partner->id,
                         'zip_code' => $address['zip_code'],
                         'street' => $address['street'],
-                        'number' => $address['number'] ?? null,
+                       
                         'complement' => $address['complement'] ?? null,
                         'neighborhood' => $address['neighborhood'] ?? null,
                         'city' => $address['city'],
@@ -135,6 +138,15 @@ class PartnerController extends Controller
                         'status' => $address['status'] ?? 'A',
                         'active' => $address['active'] ?? true,
                         'created_by' => $userId,
+                    ]);
+
+                    // 🔹 Novo trecho: cria o vínculo na tabela address_partner
+                    AddressPartnerModel::create([
+                        'partner_id' => $partner->id,
+                        'address_id' => $addressModel->id,
+                        'number' => $address['number'] ?? null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
                 }
             }
@@ -146,6 +158,7 @@ class PartnerController extends Controller
             return $this->createdResponse($partner, 'Partner created successfully');
         });
     }
+
 
     public function update(Request $request, $id)
     {

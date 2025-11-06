@@ -16,10 +16,8 @@ class AddressModel extends Model
 
     protected $fillable = [
         'company_id',
-        'partner_id',
         'zip_code',
         'street',
-        'number',
         'complement',
         'neighborhood',
         'city',
