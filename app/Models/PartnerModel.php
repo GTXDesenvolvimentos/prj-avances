@@ -10,172 +10,45 @@ class PartnerModel extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'partners';
-
-    /**
-     * The primary key associated with the table.
-     *
-     * @var string
-     */
     protected $primaryKey = 'id';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'name',
         'tax_id',
         'partner_type',
         'person_type',
         'company_id',
-        'created_at',
-        'updated_at',
-        'deleted_at',
+        'status',
+        'note',
         'created_by',
         'updated_by',
         'deleted_by',
-        'status',
-        'note'
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
-    protected $hidden = [
-        // 'password', // se tiver campo de senha
-    ];
-
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'status' => 'boolean',
-        'company_id' => 'integer',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
-    ];
-
-
-
-    /**
-     * The attributes that should be treated as dates.
-     *
-     * @var array
-     */
     protected $dates = [
         'created_at',
         'updated_at',
-        'deleted_at'
+        'deleted_at',
     ];
 
     /**
-     * Scope a query to only include active partners.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * 🔗 Relação N:N com Contacts
      */
-    public function scopeActive($query)
-    {
-        return $query->where('status', true);
-    }
-
-    /**
-     * Scope a query to only include inactive partners.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeInactive($query)
-    {
-        return $query->where('status', false);
-    }
-
-    /**
-     * Scope a query to only include partners by type.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  string  $type
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByType($query, $type)
-    {
-        return $query->where('partner_type', $type);
-    }
-
-    /**
-     * Scope a query to only include partners by company.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  int  $companyId
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByCompany($query, $companyId)
-    {
-        return $query->where('company_id', $companyId);
-    }
-
-    /**
-     * Check if partner is active.
-     *
-     * @return bool
-     */
-    public function isActive()
-    {
-        return $this->status === true;
-    }
-
-    /**
-     * Check if partner is inactive.
-     *
-     * @return bool
-     */
-    public function isInactive()
-    {
-        return $this->status === false;
-    }
-
-    /**
-     * Get partner type label.
-     *
-     * @return string
-     */
-    public function getPartnerTypeLabel()
-    {
-        $types = [
-            'customer' => 'Customer',
-            'supplier' => 'Supplier',
-            'distributor' => 'Distributor',
-            'reseller' => 'Reseller',
-            'partner' => 'Partner'
-        ];
-
-        return $types[$this->partner_type] ?? ucfirst($this->partner_type);
-    }
-
     public function contacts()
     {
-        return $this->hasMany(ContactEntitiesModel::class, 'partner_id');
+        return $this->belongsToMany(ContactsModel::class, 'contacts_partners', 'partners_id', 'contacts_id')
+            ->withPivot(['created_by', 'updated_by', 'deleted_by'])
+            ->withTimestamps();
     }
 
+    /**
+     * 🔗 Relação N:N com Addresses
+     */
     public function addresses()
     {
-        return $this->hasMany(AddressModel::class, 'partner_id');
+        return $this->belongsToMany(AddressModel::class, 'address_partner', 'partner_id', 'address_id')
+            ->withPivot(['number', 'created_at', 'updated_at', 'deleted_at'])
+            ->withTimestamps();
     }
 }
-
-
-
-
-

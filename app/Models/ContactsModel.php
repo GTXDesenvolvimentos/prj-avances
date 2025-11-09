@@ -6,23 +6,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class AddressModel extends Model
+class ContactsModel extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'addresses';
+    protected $table = 'contacts';
     protected $primaryKey = 'id';
 
     protected $fillable = [
+        'name',
         'company_id',
-        'zip_code',
-        'street',
-        'complement',
-        'neighborhood',
-        'city',
-        'state',
-        'status',
-        'active',
+        'type',
+        'contact',
+        'note',
         'created_by',
         'updated_by',
         'deleted_by'
@@ -39,8 +35,8 @@ class AddressModel extends Model
      */
     public function partners()
     {
-        return $this->belongsToMany(PartnerModel::class, 'address_partner', 'address_id', 'partner_id')
-            ->withPivot(['number', 'created_at', 'updated_at', 'deleted_at'])
+        return $this->belongsToMany(PartnerModel::class, 'contacts_partners', 'contacts_id', 'partners_id')
+            ->withPivot(['created_by', 'updated_by', 'deleted_by'])
             ->withTimestamps();
     }
 }
