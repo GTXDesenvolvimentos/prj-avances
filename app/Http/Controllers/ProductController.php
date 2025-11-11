@@ -133,19 +133,8 @@ class ProductController extends Controller
                     Rule::exists('product_categories', 'id')
                         ->where(fn($q) => $q->where('company_id', $user->company_id)),
                 ],
-                'product_name' => [
-                    'required',
-                    'string',
-                    'min:2',
-                    Rule::unique('products', 'product_name')
-                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
-                ],
-                'product_code' => [
-                    'nullable',
-                    'string',
-                    Rule::unique('products', 'product_code')
-                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
-                ],
+
+                'product_code' => 'required|string|min:4|unique:products,product_code,NULL,NULL,company_id,' . $user->company_id,
                 'description' => 'nullable|string',
                 'availability' => 'nullable|array',
                 'availability.*' => 'in:sale,rental,internal',
@@ -158,7 +147,7 @@ class ProductController extends Controller
             ]);
 
             if ($validator->fails()) {
-               // return $this->validationErrorResponse($validator->errors()->toArray());
+                return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
             $availability = $request->availability;
@@ -166,7 +155,7 @@ class ProductController extends Controller
             if (is_array($availability)) {
                 $availability = implode(',', $availability);
             }
-            
+
             // 🔹 Monta os dados do produto
             $productData = [
                 'unit_id' => $data['unit_id'],
@@ -200,8 +189,9 @@ class ProductController extends Controller
             $user = $request->user();
             $data = $request->all();
             $data['company_id'] = $user->company_id;
+            $data['updated_by'] = $user->id;
 
-            // Busca o produto garantindo que pertence à mesma empresa
+            // 🔹 Busca o produto garantindo que pertence à mesma empresa
             $product = ProductModel::where('id', $id)
                 ->where('company_id', $user->company_id)
                 ->first();
@@ -214,22 +204,31 @@ class ProductController extends Controller
                 );
             }
 
-            // Validação (ignorando o próprio registro no unique)
+            // 🔹 Validação
             $validator = Validator::make($data, [
-                'unit_id' => 'sometimes|required|integer|exists:product_units,id',
-                'category_id' => 'sometimes|required|integer|exists:product_categories,id',
-                'product_name' => [
+                'unit_id' => [
+                    'sometimes',
+                    'required',
+                    'integer',
+                    Rule::exists('product_units', 'id')
+                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
+                ],
+                'category_id' => [
+                    'sometimes',
+                    'required',
+                    'integer',
+                    Rule::exists('product_categories', 'id')
+                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
+                ],
+                'product_name' => 'sometimes|required|string|min:2',
+                'product_code' => [
                     'sometimes',
                     'required',
                     'string',
-                    'min:2',
-                    Rule::unique('products')->ignore($id)->where('company_id', $user->company_id)
-                ],
-                'product_code' => [
-                    'sometimes',
-                    'nullable',
-                    'string',
-                    Rule::unique('products')->ignore($id)->where('company_id', $user->company_id)
+                    'min:4',
+                    Rule::unique('products', 'product_code')
+                        ->ignore($id)
+                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
                 ],
                 'description' => 'sometimes|nullable|string',
                 'availability' => 'sometimes|nullable|array',
@@ -239,38 +238,42 @@ class ProductController extends Controller
                 'rental_price' => 'sometimes|nullable|numeric|min:0',
                 'is_dynamic_sale_price' => 'sometimes|boolean',
                 'is_dynamic_rental_price' => 'sometimes|boolean',
+                'company_id' => 'required|integer',
             ]);
 
             if ($validator->fails()) {
                 return $this->validationErrorResponse($validator->errors()->toArray());
             }
 
-            // Prepara dados para atualização
+            // 🔹 Processa availability
+            $availability = $data['availability'] ?? $product->availability;
+            if (is_array($availability)) {
+                $availability = implode(',', $availability);
+            }
+
+            // 🔹 Monta dados atualizados
             $updateData = [
                 'unit_id' => $data['unit_id'] ?? $product->unit_id,
                 'category_id' => $data['category_id'] ?? $product->category_id,
                 'product_name' => $data['product_name'] ?? $product->product_name,
                 'product_code' => $data['product_code'] ?? $product->product_code,
                 'description' => $data['description'] ?? $product->description,
+                'availability' => $availability,
                 'average_cost' => $data['average_cost'] ?? $product->average_cost,
                 'sale_price' => $data['sale_price'] ?? $product->sale_price,
                 'rental_price' => $data['rental_price'] ?? $product->rental_price,
                 'is_dynamic_sale_price' => $data['is_dynamic_sale_price'] ?? $product->is_dynamic_sale_price,
                 'is_dynamic_rental_price' => $data['is_dynamic_rental_price'] ?? $product->is_dynamic_rental_price,
-                'updated_by' => $user->id
+                'updated_by' => $user->id,
             ];
 
-            // Processa availability se fornecida
-            if (isset($data['availability'])) {
-                $updateData['availability'] = !empty($data['availability']) ? implode(',', $data['availability']) : null;
-            }
-
-            // Atualização
+            // 🔹 Atualiza o produto
             $product->update($updateData);
 
             return $this->updatedResponse($product, 'Product updated successfully');
         });
     }
+
 
     /** EXCLUSÃO DO PRODUTO */
     public function destroy(Request $request, $id)
