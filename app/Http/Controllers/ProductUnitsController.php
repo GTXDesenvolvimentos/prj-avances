@@ -82,7 +82,7 @@ class ProductUnitsController extends Controller
                 $query->where('status', $request->query('status'));
             }
 
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('id', 'desc');
             $units = $query->paginate($limit);
 
             return $this->paginatedResponse($units, 'Product units retrieved successfully');

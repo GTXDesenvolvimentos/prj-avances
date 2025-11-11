@@ -32,7 +32,7 @@ class ProductCategoryController extends Controller
             }
 
             // Ordenação
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('id', 'desc');
 
             // Paginação
             $categories = $query->paginate($limit);
