@@ -18,9 +18,10 @@ class InventoryController extends Controller
     /**
      * Lista o estoque agrupado por produto e armazém.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
         try {
+
             $user = $request->user();
             $companyId = $user->company_id ?? null;
 
@@ -31,22 +32,21 @@ class InventoryController extends Controller
                 ], 400);
             }
 
-            // 🔹 Parâmetros de consulta
             $limit = (int) $request->query('limit', 25);
             $page = (int) $request->query('page', 1);
             $search = trim($request->query('search', ''), "\"'");
             $productId = $request->query('product_id');
             $quantityBelow = $request->query('quantity_below');
 
-            // 🔹 Monta query base
+            // 🔹 Busca todos os movimentos da empresa
             $query = InventoryModel::with([
                 'product.category',
                 'product.unit',
                 'warehouse',
-                'movementType', // relação correta
+                'movement_type' // importante para saber se é 'in' ou 'out'
             ])->where('company_id', $companyId);
 
-            // 🔹 Filtros opcionais
+
             if (!empty($productId)) {
                 $query->where('product_id', $productId);
             }
@@ -54,12 +54,16 @@ class InventoryController extends Controller
             if (!empty($search)) {
                 $query->whereHas('product', function ($q) use ($search) {
                     $q->where('name', 'LIKE', "%{$search}%")
-                      ->orWhere('description', 'LIKE', "%{$search}%");
+                        ->orWhere('description', 'LIKE', "%{$search}%");
                 });
             }
 
-            // 🔸 Busca todos os registros para agrupar
+            // 🔸 Pegamos todos os registros (sem paginate) para agrupar corretamente
             $allMovements = $query->orderBy('product_id')->get();
+
+           // dd($allMovements);
+
+
 
             // 🔹 Agrupa por produto
             $grouped = $allMovements
@@ -67,34 +71,30 @@ class InventoryController extends Controller
                 ->map(function ($items) {
                     $first = $items->first();
 
-                    // 🔹 Soma total considerando o tipo de movimento (entrada/saída)
+
+
+                    // 🔹 Soma total considerando o tipo de movimento (entrada ou saída)
                     $totalQuantity = $items->sum(function ($movement) {
-                        $type = $movement->movementType?->type; // safe access
-                        return match ($type) {
-                            'in' => $movement->quantity_movement,
-                            'out' => -$movement->quantity_movement,
-                            default => 0,
-                        };
+                        return $movement->movementType->type === 'in'
+                            ? $movement->quantity_movement
+                            : -$movement->quantity_movement;
                     });
 
-                    // 🔹 Agrupa também por armazém
+                    // 🔹 Agrupa também por armazém (warehouse)
                     $warehouses = $items->groupBy('warehouse_id')->map(function ($warehouseItems) {
-                        $warehouse = $warehouseItems->first()->warehouse;
+                        $w = $warehouseItems->first()->warehouse;
 
                         $warehouseQuantity = $warehouseItems->sum(function ($movement) {
-                            $type = $movement->movementType?->type;
-                            return match ($type) {
-                                'in' => $movement->quantity_movement,
-                                'out' => -$movement->quantity_movement,
-                                default => 0,
-                            };
+                            return $movement->movementType->type === 'in'
+                                ? $movement->quantity_movement
+                                : -$movement->quantity_movement;
                         });
 
                         return [
                             'warehouse' => [
-                                'id' => $warehouse->id ?? null,
-                                'name' => $warehouse->name ?? 'Desconhecido',
-                                'note' => $warehouse->note ?? null,
+                                'id' => $w->id ?? null,
+                                'name' => $w->name ?? 'Desconhecido',
+                                'note' => $w->note ?? null,
                             ],
                             'quantity' => number_format($warehouseQuantity, 2, '.', ''),
                         ];
@@ -104,7 +104,7 @@ class InventoryController extends Controller
 
                     return [
                         'id' => $first->id,
-                        'quantity' => number_format($totalQuantity, 2, '.', ''), // saldo final
+                        'quantity' => number_format($totalQuantity, 2, '.', ''), // ✅ saldo real do produto
                         'updated_at' => $first->updated_at,
                         'created_at' => $first->created_at,
                         'product' => $product ? [
@@ -122,28 +122,25 @@ class InventoryController extends Controller
                                 'description' => $product->unit->description,
                             ] : null,
                         ] : null,
-                        'movement_type' => $first->movementType ? [
-                            'id' => $first->movementType->id,
-                            'name' => $first->movementType->name ?? null,
-                            'type' => $first->movementType->type ?? null,
-                        ] : null,
+                        'movement_type' => $first->movement_type,
                         'quantity_per_warehouses' => $warehouses,
                     ];
                 })
+                // 🔹 Aplica filtro opcional (estoques abaixo de determinado valor)
                 ->filter(function ($item) use ($quantityBelow) {
                     if (!empty($quantityBelow)) {
-                        return (float) $item['quantity'] < (float) $quantityBelow;
+                        return (float) $item['quantity_total'] < (float) $quantityBelow;
                     }
                     return true;
                 })
                 ->values();
 
-            // 🔸 Paginação manual
+            // 🔸 Paginação manual após o agrupamento
             $total = $grouped->count();
             $offset = ($page - 1) * $limit;
             $paged = $grouped->slice($offset, $limit)->values();
 
-            return response()->json([
+             return response()->json([
                 'data' => $paged,
                 'pagination' => [
                     'current_page' => $page,
