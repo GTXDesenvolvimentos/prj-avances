@@ -107,21 +107,7 @@ class InventoryController extends Controller
                         'quantity' => number_format($totalQuantity, 2, '.', ''), // ✅ saldo real do produto
                         'updated_at' => $first->updated_at,
                         'created_at' => $first->created_at,
-                        'product' => $product ? [
-                            'id' => $product->id,
-                            'product_code' => $product->product_code,
-                            'name' => $product->name,
-                            'description' => $product->description,
-                            'category' => $product->category ? [
-                                'id' => $product->category->id,
-                                'name' => $product->category->name,
-                            ] : null,
-                            'unit' => $product->unit ? [
-                                'id' => $product->unit->id,
-                                'symbol' => $product->unit->symbol,
-                                'description' => $product->unit->description,
-                            ] : null,
-                        ] : null,
+                        'product' => $product, 
                         'movement_type' => $first->movement_type,
                         'quantity_per_warehouses' => $warehouses,
                     ];
