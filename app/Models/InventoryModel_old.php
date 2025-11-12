@@ -44,9 +44,8 @@ class InventoryModel extends Model
     // Tipo de movimento (entrada, saída, etc.)
     public function movementType()
     {
-        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id');
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id')->withTrashed();
     }
-
 
     // Armazém vinculado
     public function warehouse()
@@ -60,13 +59,20 @@ class InventoryModel extends Model
         return $this->belongsTo(CompanyModel::class, 'company_id')->withTrashed();
     }
 
+    
     public function category()
     {
-        return $this->belongsTo(ProductCategoryModel::class, 'category_id');
+        return $this->belongsTo(ProductCategoryModel::class, 'category_id')->withTrashed();
     }
 
     public function unit()
     {
-        return $this->belongsTo(ProductUnitsModel::class, 'unit_id');
+        return $this->belongsTo(ProductUnitsModel::class, 'unit_id')->withTrashed();
     }
+
+    public function movement_type()
+    {
+        return $this->belongsTo(MovementTypeModel::class, 'movement_type_id')->withTrashed();
+    }
+
 }
