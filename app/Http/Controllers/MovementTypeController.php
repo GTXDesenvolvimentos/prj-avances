@@ -28,7 +28,7 @@ class MovementTypeController extends Controller
             // Filtro de busca
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'LIKE', "%{$search}%")
+                    $q->where('movement', 'LIKE', "%{$search}%")
                         ->orWhere('description', 'LIKE', "%{$search}%");
                 });
             }
@@ -39,7 +39,7 @@ class MovementTypeController extends Controller
             }
 
             // Ordenação
-            $query->orderBy('created_at', 'desc');
+            $query->orderBy('id', 'desc');
 
             // Paginação
             $movementTypes = $query->paginate($limit);

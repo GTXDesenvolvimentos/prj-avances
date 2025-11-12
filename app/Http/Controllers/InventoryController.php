@@ -38,13 +38,15 @@ use ApiResponser;
         $quantityBelow = $request->query('quantity_below');
 
         // 🔹 Query base com relacionamentos
-        $query = InventoryModel::with([
-            'category',
-            'unit',
-            'warehouse',
-            'movement_type', // para saber se é entrada ou saída
-        ])->where('company_id', $companyId);
 
+
+        $query = InventoryModel::with([
+            'product.category',
+            'product.unit',
+            'warehouse',
+            'movement_type',
+        ])->where('company_id', $companyId);
+       
         // 🔹 Filtros opcionais
         if (!empty($productId)) {
             $query->where('product_id', $productId);
@@ -62,7 +64,7 @@ use ApiResponser;
         }
 
         // 🔹 Ordenação
-        $query->orderBy('created_at', 'desc');
+        $query->orderBy('id', 'desc');
 
         // 🔹 Paginação
         $inventories = $query->paginate($limit, ['*'], 'page', $page);

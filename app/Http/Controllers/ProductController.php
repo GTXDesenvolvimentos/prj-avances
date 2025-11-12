@@ -239,6 +239,7 @@ class ProductController extends Controller
                 'is_dynamic_sale_price' => 'sometimes|boolean',
                 'is_dynamic_rental_price' => 'sometimes|boolean',
                 'company_id' => 'required|integer',
+                'status' => 'sometimes|nullable|string',
             ]);
 
             if ($validator->fails()) {
@@ -262,6 +263,7 @@ class ProductController extends Controller
                 'average_cost' => $data['average_cost'] ?? $product->average_cost,
                 'sale_price' => $data['sale_price'] ?? $product->sale_price,
                 'rental_price' => $data['rental_price'] ?? $product->rental_price,
+                'status' => $data['status'] ?? $product->status,
                 'is_dynamic_sale_price' => $data['is_dynamic_sale_price'] ?? $product->is_dynamic_sale_price,
                 'is_dynamic_rental_price' => $data['is_dynamic_rental_price'] ?? $product->is_dynamic_rental_price,
                 'updated_by' => $user->id,

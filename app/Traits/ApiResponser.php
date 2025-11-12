@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 trait ApiResponser
 {
@@ -29,9 +28,10 @@ trait ApiResponser
         int $code = 200,
     ): JsonResponse {
         return response()->json([
-            'success'   => true,
-            'message'   => $message ?? self::DEFAULT_SUCCESS_MESSAGE,
-            'data'      => $data,
+            'success' => true,
+            'code' => $code,
+            'message' => $message ?? self::DEFAULT_SUCCESS_MESSAGE,
+            'data' => $data,
             'timestamp' => now()->format(self::TIMESTAMP_FORMAT),
         ], $code);
     }
@@ -46,37 +46,53 @@ trait ApiResponser
         return $this->successResponse($data, $message, 200);
     }
 
-    protected function deletedResponse(string $message = 'Resource deleted successfully'): JsonResponse
-    {
-        return $this->successResponse(null, $message, 200);
+    protected function deletedResponse(
+        string $message = 'Resource deleted successfully',
+        mixed $data = null,
+        int $code = 200
+    ): JsonResponse {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data,
+            'code' => $code,
+            'timestamp' => now()->format(self::TIMESTAMP_FORMAT),
+        ], $code);
     }
+
 
     protected function noContentResponse(): JsonResponse
     {
-        return response()->json(null, 204);
+        return response()->json([
+            'success' => true,
+            'code' => 204,
+            'message' => 'No content',
+            'data' => null,
+            'timestamp' => now()->format(self::TIMESTAMP_FORMAT),
+        ], 204);
     }
 
     /* ============================================================
      * PAGINATION RESPONSE
      * ============================================================ */
 
-    protected function paginatedResponse(AbstractPaginator $paginator, string $message = null): JsonResponse
+    protected function paginatedResponse(AbstractPaginator $paginator, string $message = null, int $code = 200): JsonResponse
     {
         return response()->json([
             'success' => true,
+            'code' => $code,
             'message' => $message ?? 'Data retrieved successfully',
             'data' => $paginator->items(),
-                'pagination' => [
-                    'current_page' => $paginator->currentPage(),
-                    'per_page' => $paginator->perPage(),
-                    'total' => $paginator->total(),
-                    'total_pages' => $paginator->lastPage(),
-                    'from' => $paginator->firstItem(),
-                    'to' => $paginator->lastItem(),
-                ],
-
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'total_pages' => $paginator->lastPage(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
             'timestamp' => now()->format(self::TIMESTAMP_FORMAT),
-        ]);
+        ], $code);
     }
 
     /* ============================================================
@@ -89,12 +105,12 @@ trait ApiResponser
         int $statusCode = 400,
         mixed $errors = null
     ): JsonResponse {
-
         return response()->json([
-            'success'   => false,
-            'message'   => $message ?? self::DEFAULT_ERROR_MESSAGE,
-            'error_code'=> $errorCode,
-            'errors'    => $errors,
+            'success' => false,
+            'code' => $statusCode,
+            'message' => $message ?? self::DEFAULT_ERROR_MESSAGE,
+            'error_code' => $errorCode,
+            'errors' => $errors,
             'timestamp' => now()->format(self::TIMESTAMP_FORMAT),
         ], $statusCode);
     }
@@ -113,24 +129,19 @@ trait ApiResponser
         try {
             $result = $callback();
 
-            // ✅ Se já é JsonResponse, não re-empacotar
             if ($result instanceof JsonResponse) {
                 return $result;
             }
 
-            // ✅ Se for paginação
             if ($result instanceof AbstractPaginator) {
                 return $this->paginatedResponse($result, $successMessage);
             }
 
-            // ✅ Se for recurso JSON
             if ($result instanceof JsonResource || $result instanceof ResourceCollection) {
                 return $this->successResponse($result, $successMessage);
             }
 
-            // ✅ Default = sucesso
             return $this->successResponse($result, $successMessage);
-
         } catch (\Exception $e) {
             return $this->handleException($e);
         }
@@ -155,7 +166,7 @@ trait ApiResponser
         }
 
         if ($e instanceof QueryException && $e->getCode() === '23000' && str_contains($e->getMessage(), 'Duplicate entry')) {
-            return $this->errorResponse('Duplicate record', 'DUPLICATE_ENTRY', 409,['general' => 'Duplicate record']);
+            return $this->errorResponse('Duplicate record', 'DUPLICATE_ENTRY', 409, ['general' => 'Duplicate record']);
         }
 
         return $this->errorResponse(
