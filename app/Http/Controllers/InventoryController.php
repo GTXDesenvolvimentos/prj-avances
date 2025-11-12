@@ -91,11 +91,8 @@ class InventoryController extends Controller
                         });
 
                         return [
-                            'warehouse' => [
-                                'id' => $w->id ?? null,
-                                'name' => $w->name ?? 'Desconhecido',
-                                'note' => $w->note ?? null,
-                            ],
+                            'warehouse' =>$w,
+                            
                             'quantity' => number_format($warehouseQuantity, 2, '.', ''),
                         ];
                     })->values();
