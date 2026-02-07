@@ -147,7 +147,7 @@ class ProductController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->validationErrorResponse($validator->errors()->toArray());
+                return $this->validationErrorResponse($validator->errors()->toArray(), "Não foi possível adicionar o produto. Verifique os dados e tente novamente.");
             }
 
             $availability = $request->availability;
@@ -223,7 +223,7 @@ class ProductController extends Controller
                 'product_name' => 'sometimes|required|string|min:2',
                 'product_code' => [
                     'sometimes',
-                    'required',
+                    'nullable',
                     'string',
                     'min:4',
                     Rule::unique('products', 'product_code')
@@ -243,7 +243,7 @@ class ProductController extends Controller
             ]);
 
             if ($validator->fails()) {
-                return $this->validationErrorResponse($validator->errors()->toArray());
+                return $this->validationErrorResponse($validator->errors()->toArray(), "Não foi possível atualizar o produto. Verifique os dados e tente novamente.");
             }
 
             // 🔹 Processa availability

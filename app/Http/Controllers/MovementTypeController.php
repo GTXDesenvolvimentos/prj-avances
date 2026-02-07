@@ -139,7 +139,14 @@ class MovementTypeController extends Controller
 
             // Validação dos dados
             $validator = Validator::make($data, [
-                'movement' => 'required|string|min:1|unique:movement_type,movement,NULL,NULL,company_id,' . $user->company_id,
+                'movement' => [
+                    'required',
+                    'string',
+                    'min:1',
+                    Rule::unique('movement_type', 'movement')
+                        ->ignore($id)
+                        ->where(fn($q) => $q->where('company_id', $user->company_id)),
+                ],
                 'description' => 'nullable|string|min:3|max:500',
                 'type' => [
                     'required',
@@ -198,5 +205,4 @@ class MovementTypeController extends Controller
             );
         });
     }
-
 }
