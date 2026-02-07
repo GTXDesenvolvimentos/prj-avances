@@ -30,7 +30,7 @@ jobs:
           local-dir: ./
           server-dir: api.staging.avances.com.br/
           protocol: ftps
-          dangerous-clean-slate: true
+          dangerous-clean-slate: false
           exclude: |
             **/.git*
             **/.github/**
